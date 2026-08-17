@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soft Checksums: OOD Detection for Scientific ML | Eli Lewis</title>
+<meta name="description" content="A soft-checksum method for out-of-distribution detection in scientific machine learning: an extra checknode in the output layer, a composite loss, and synthetic OOD generation let a regression surrogate flag its own untrustworthy predictions in a single forward pass. 99.66% AUROC on a 0D combustion dataset.">
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+<style>
+:root{
+  --bg:#faf9f6;
+  --surface:#ffffff;
+  --surface-2:#f3f1ec;
+  --ink:#16181d;
+  --ink-2:#3c4048;
+  --muted:#6b7078;
+  --rule:#e2ded6;
+  --rule-2:#cec9be;
+  --accent:#1f5fd0;
+  --accent-soft:#e8effb;
+  --accent-2:#a35a00;
+  --accent-2-soft:#fbf0e0;
+  --mono:ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --maxw:900px;
+  --wide:1180px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:80px;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--sans);font-size:17px;line-height:1.68;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"kern" 1,"liga" 1;
+}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(31,95,208,.3)}
+a:hover{border-bottom-color:var(--accent)}
+code,kbd{font-family:var(--mono);font-size:.88em}
+
+.nav{
+  position:sticky;top:0;z-index:50;
+  background:rgba(250,249,246,.86);backdrop-filter:saturate(1.6) blur(12px);
+  border-bottom:1px solid var(--rule);
+}
+.nav-in{
+  max-width:var(--wide);margin:0 auto;padding:0 28px;
+  height:56px;display:flex;align-items:center;gap:28px;
+}
+.nav-home{
+  font-weight:650;letter-spacing:-.01em;color:var(--ink);
+  border:0;font-size:15px;white-space:nowrap;
+}
+.nav-links{display:flex;gap:22px;margin-left:auto;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{
+  border:0;color:var(--muted);font-size:13.5px;font-weight:500;
+  letter-spacing:.01em;white-space:nowrap;padding:4px 0;
+  border-bottom:2px solid transparent;transition:color .15s,border-color .15s;
+}
+.nav-links a:hover{color:var(--ink)}
+.nav-links a.on{color:var(--ink);border-bottom-color:var(--accent)}
+
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+.wrap-wide{max-width:var(--wide);margin:0 auto;padding:0 28px}
+section{padding:72px 0;border-top:1px solid var(--rule)}
+section:first-of-type{border-top:0}
+
+.hero{padding:78px 0 5px;border:0}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 18px;
+}
+h1{
+  font-size:clamp(34px,5.4vw,54px);line-height:1.08;letter-spacing:-.028em;
+  font-weight:680;margin:0 0 20px;max-width:16ch;
+}
+.dek{font-size:clamp(18px,2.2vw,21px);line-height:1.55;color:var(--ink-2);max-width:60ch;margin:0 0 30px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:34px}
+.chip{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.03em;
+  padding:5px 11px;border:1px solid var(--rule-2);border-radius:100px;
+  color:var(--ink-2);background:var(--surface);
+}
+.hero-links{display:flex;flex-wrap:wrap;gap:12px}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:8px;font-size:14.5px;font-weight:550;
+  border:1px solid var(--ink);background:var(--ink);color:#fff;
+  cursor:pointer;transition:opacity .15s;
+}
+.btn:hover{opacity:.84;border-bottom-color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule-2)}
+.btn.ghost:hover{border-color:var(--ink);opacity:1}
+.btn[disabled]{opacity:.42;cursor:not-allowed}
+
+.stats{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);
+  border-radius:10px;overflow:hidden;margin:8px 0 0;
+}
+.stat{background:var(--surface);padding:20px 22px}
+.stat b{
+  display:block;font-family:var(--mono);font-size:26px;font-weight:600;
+  letter-spacing:-.02em;line-height:1.15;margin-bottom:6px;
+}
+.stat span{font-size:12.5px;color:var(--muted);line-height:1.4;display:block}
+.stat .sub{font-family:var(--mono);font-size:11px;color:var(--accent-2);margin-top:6px;letter-spacing:.01em}
+
+.sec-head{display:flex;align-items:baseline;gap:16px;margin:0 0 8px}
+.sec-num{
+  font-family:var(--mono);font-size:12.5px;color:var(--accent);
+  letter-spacing:.1em;padding-top:6px;flex:none;
+}
+h2{font-size:clamp(27px,3.6vw,36px);line-height:1.15;letter-spacing:-.024em;font-weight:660;margin:0}
+h3{font-size:20px;letter-spacing:-.014em;font-weight:620;margin:38px 0 12px}
+h4{font-size:15.5px;letter-spacing:-.005em;font-weight:620;margin:26px 0 8px}
+.lede{font-size:18.5px;line-height:1.6;color:var(--ink-2);max-width:62ch;margin:14px 0 0}
+p{margin:0 0 18px;max-width:68ch}
+ul,ol{max-width:68ch;padding-left:22px;margin:0 0 18px}
+li{margin-bottom:8px}
+li::marker{color:var(--muted)}
+strong{font-weight:620}
+
+.block{
+  position:relative;padding-left:26px;margin:40px 0;
+  border-left:2px solid var(--rule-2);
+}
+.block.motivation{border-left-color:var(--accent-2)}
+.block.methodology{border-left-color:var(--accent)}
+.block.implementation{border-left-color:var(--ink-2)}
+.block > .tag{
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--muted);display:block;margin-bottom:10px;
+}
+.block.motivation > .tag{color:var(--accent-2)}
+.block.methodology > .tag{color:var(--accent)}
+.block > h3:first-of-type{margin-top:0}
+
+figure{margin:34px 0;background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+figure img{width:100%;height:auto;background:#fff}
+figcaption{
+  padding:14px 18px;font-size:13.5px;line-height:1.55;color:var(--muted);
+  border-top:1px solid var(--rule);background:var(--surface-2);
+}
+figcaption b{color:var(--ink-2);font-weight:600}
+.fig-wide{
+  width:min(var(--wide), calc(100vw - 56px));
+  margin-left:50%;transform:translateX(-50%);
+}
+.fig-pad img{padding:18px 22px}
+.fig-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:760px){.fig-grid{grid-template-columns:1fr}}
+.placeholder-note{
+  display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent-2);background:var(--accent-2-soft);
+  border:1px solid #e8d5b4;border-radius:4px;padding:2px 7px;margin-right:8px;vertical-align:1px;
+}
+
+.tbl-scroll{overflow-x:auto;margin:24px 0;border:1px solid var(--rule);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)}
+th{
+  font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;background:var(--surface-2);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.better{color:var(--accent);font-weight:600}
+tr.total td{background:var(--surface-2);font-weight:600}
+
+.callout{
+  border:1px solid var(--rule);border-left:3px solid var(--accent-2);
+  background:var(--surface);border-radius:0 8px 8px 0;
+  padding:18px 22px;margin:26px 0;font-size:15.5px;line-height:1.6;
+}
+.callout p:last-child{margin-bottom:0}
+.callout .tag{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent-2);display:block;margin-bottom:8px;
+}
+
+pre{
+  background:#15171c;color:#e6e6e6;border-radius:9px;padding:18px 20px;
+  overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;margin:22px 0;
+}
+pre .c{color:#8b929e}
+pre .k{color:#8fb8ff}
+pre .s{color:#e0b57a}
+
+.eq{
+  margin:24px 0;padding:16px 20px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:9px;overflow-x:auto;
+}
+.eq.plain{background:transparent;border:0;padding:6px 0}
+.eq-label{
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  letter-spacing:.06em;margin-bottom:8px;display:block;
+}
+.katex-inline{overflow-wrap:anywhere}
+body.no-katex .katex-inline,
+body.no-katex .eq{font-family:var(--mono);font-size:13.5px;color:var(--ink-2)}
+.katex-display{margin:.4em 0 !important}
+.katex{font-size:1.04em}
+
+.sim{
+  background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  overflow:hidden;margin:32px 0;
+}
+.sim-head{
+  padding:16px 20px;border-bottom:1px solid var(--rule);background:var(--surface-2);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.sim-title{font-weight:620;font-size:15px}
+.sim-status{
+  font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:auto;
+  display:flex;align-items:center;gap:8px;
+}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--rule-2);flex:none}
+.dot.busy{background:var(--accent-2);animation:pulse 1s ease-in-out infinite}
+.dot.ok{background:var(--accent)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.sim-body{display:grid;grid-template-columns:270px 1fr;gap:0}
+@media(max-width:820px){.sim-body{grid-template-columns:1fr}}
+.sim-controls{padding:20px;border-right:1px solid var(--rule);background:var(--surface)}
+@media(max-width:820px){.sim-controls{border-right:0;border-bottom:1px solid var(--rule)}}
+.ctl{margin-bottom:16px}
+.ctl label{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-size:12.5px;color:var(--ink-2);margin-bottom:5px;font-weight:500;
+}
+.ctl label b{font-family:var(--mono);font-weight:600;font-size:12.5px;color:var(--ink)}
+.ctl input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+.ctl select{
+  width:100%;padding:7px 9px;font-family:var(--sans);font-size:13px;
+  border:1px solid var(--rule-2);border-radius:6px;background:var(--surface);color:var(--ink);
+}
+.sim-out{padding:20px;min-width:0}
+.cv-box{border:1px solid var(--rule);border-radius:8px;padding:8px;background:var(--surface)}
+.cv-box h5{
+  margin:0 0 6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);font-weight:500;
+}
+canvas{width:100%;display:block}
+.sim-readout{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--rule);
+}
+.ro b{display:block;font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.01em}
+.ro span{font-size:11.5px;color:var(--muted)}
+.sim-note{
+  font-size:12.5px;color:var(--accent-2);background:var(--accent-2-soft);
+  border-top:1px solid #ecdcc0;padding:11px 20px;line-height:1.5;
+}
+
+.diagram{margin:32px 0;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:24px 20px}
+.diagram svg{width:100%;height:auto;display:block}
+
+footer{border-top:1px solid var(--rule);padding:44px 0 64px;color:var(--muted);font-size:14px}
+footer p{max-width:68ch}
+
+.status-strip{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
+  color:var(--accent-2);background:var(--accent-2-soft);
+  border:1px solid #ecdcc0;border-radius:7px;padding:9px 14px;margin:0 0 30px;
+}
+hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
+.small{font-size:14px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="nav-home" href="index.html">Eli Lewis <span style="color:var(--muted);font-weight:400">/ Soft Checksums</span></a>
+    <div class="nav-links">
+      <a href="#interactive">Demonstration</a>
+      <a href="#summary">Summary</a>
+      <a href="#background">1. Background</a>
+      <a href="#method">2. Method</a>
+      <a href="#ood">3. OOD Generation</a>
+      <a href="#toy">4. Toy Problem</a>
+      <a href="#results">5. Results</a>
+    </div>
+  </div>
+</nav>
+
+<div id="top"></div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Scientific Machine Learning &bull; Undergraduate Research</p>
+    <h1>Teaching a network to know when it is guessing</h1>
+    <p class="dek">
+      Surrogate models replace expensive physics simulations, but standard regression networks give no
+      warning when evaluated outside their training distribution. By adding a single checknode to the output layer
+      and training it with a specialized loss, the network's outputs disagree when presented with out-of-distribution inputs.
+      This internal disagreement serves as an immediate detection flag during standard inference, achieving 99.66% AUROC
+      on a 0D combustion dataset.
+    </p>
+    <div class="hero-links">
+      <a class="btn" href="#interactive">Try the demo</a>
+      <a class="btn ghost" href="assets/checksum_paper.pdf" target="_blank" rel="noopener">Read the paper (PDF)</a>
+      <a class="btn ghost" href="index.html#projects">All projects</a>
+    </div>
+  </div>
+</header>
+
+<section id="interactive">
+  <div class="wrap-wide">
+    <div class="sec-head"><h2>Demonstration</h2></div>
+    <p class="lede" style="max-width:74ch">
+      This runs the actual trained sum-checksum model in your browser with Pyodide and NumPy. Load it, then
+      move the query point around the 2D toy domain. Inside the in-distribution disk the three predicted
+      outputs stay consistent with the checknode, so the checksum error stays low; drag outside and the
+      predictions break down and the error explodes. The domain, the three outputs, and this error map are
+      the setup described in the <a href="#toy">Toy Problem</a> section below.
+    </p>
+
+    <div class="sim">
+      <div class="sim-head">
+        <button class="btn" id="loadBtn">Load model (Pyodide + NumPy)</button>
+        <span class="sim-title" style="font-weight:500;color:var(--muted)">summation checksum &middot; width 256 &middot; depth 2</span>
+        <span class="sim-status"><span class="dot" id="dot"></span><span id="statusTxt">idle</span></span>
+      </div>
+      <div class="sim-body">
+        <div class="sim-controls">
+          <div class="ctl">
+            <label>Query point&nbsp; x<sub>1</sub> <b><span id="v_x">0.10</span></b></label>
+            <input type="range" id="s_x" min="-1" max="1" step="0.01" value="0.10">
+          </div>
+          <div class="ctl">
+            <label>Query point&nbsp; x<sub>2</sub> <b><span id="v_y">0.05</span></b></label>
+            <input type="range" id="s_y" min="-1" max="1" step="0.01" value="0.05">
+          </div>
+          <hr class="soft" style="margin:18px 0">
+          <div class="ctl">
+            <label>Flag threshold&nbsp; &epsilon; <b><span id="v_th">0.20</span></b></label>
+            <input type="range" id="s_th" min="0.02" max="2" step="0.01" value="0.20">
+          </div>
+          <p class="small" style="margin:10px 0 0;font-size:12px;line-height:1.5">
+            
+          </p>
+          <div id="prog" style="height:3px;background:var(--rule);border-radius:2px;overflow:hidden;margin-top:14px;display:none">
+            <i id="progBar" style="display:block;height:100%;width:0;background:var(--accent);transition:width .3s"></i>
+          </div>
+          <div id="log" style="font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:12px;white-space:pre-wrap;line-height:1.5;max-height:120px;overflow-y:auto"></div>
+        </div>
+
+        <div class="sim-out">
+          <div class="cv-box">
+            <h5>Checksum error over the input domain (trained model)</h5>
+            <canvas id="cv" width="720" height="460"></canvas>
+          </div>
+
+          <div class="tbl-scroll" style="margin:16px 0 0">
+            <table>
+              <thead><tr><th>Output</th><th class="num">True f(x)</th><th class="num">Model &#375;</th></tr></thead>
+              <tbody>
+                <tr><td>y<sub>1</sub> = sin x<sub>1</sub> + cos x<sub>2</sub></td><td class="num" id="t_y1">&ndash;</td><td class="num" id="p_y1">&ndash;</td></tr>
+                <tr><td>y<sub>2</sub> = x<sub>1</sub> &middot; x<sub>2</sub></td><td class="num" id="t_y2">&ndash;</td><td class="num" id="p_y2">&ndash;</td></tr>
+                <tr><td>y<sub>3</sub> = e<sup>&minus;(x<sub>1</sub>&sup2;+x<sub>2</sub>&sup2;)</sup></td><td class="num" id="t_y3">&ndash;</td><td class="num" id="p_y3">&ndash;</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="eq" style="margin:16px 0 0">
+            <span class="eq-label">the checksum, computed in the model's normalized output space</span>
+            <div id="eqline" style="font-family:var(--mono);font-size:13.5px;line-height:2.0;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">
+              load the model to compute the checksum
+            </div>
+          </div>
+
+          <div class="sim-readout">
+            <div class="ro"><b id="ro_err">&ndash;</b><span>Checksum error |C &minus; &Ccirc;|</span></div>
+            <div class="ro"><b id="ro_pred">&ndash;</b><span>Prediction error (MSE)</span></div>
+            <div class="ro"><b id="ro_call">&ndash;</b><span>Verdict</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="sim-note">
+        The heatmap is the trained model's checksum error across the domain (blue = low, in-distribution;
+        red = high, out-of-distribution), evaluated live in NumPy on a grid. Table outputs are shown in
+        real units (de-normalized); the checksum itself is computed on the model's normalized outputs,
+        which is what the checknode is trained against, so its terms differ from the real-unit values.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="summary">
+  <div class="wrap">
+    <div class="sec-head"><h2>Summary</h2></div>
+
+    <h3>The problem</h3>
+    <p>
+      Surrogate models train on expensive physics simulations to provide fast approximations. However,
+      standard regression models output point estimates without built-in confidence metrics or error bounds.
+      If given an input outside their training space, they still return a concrete value without signaling uncertainty.
+    </p>
+    <p>
+      Detecting these <strong>out-of-distribution</strong> (OOD) points prevents invalid estimates from
+      propagating through larger engineering workflows. Established approaches like deep ensembles, Monte Carlo
+      dropout, and Bayesian neural networks provide uncertainty metrics, but require running multiple inference passes
+      or training separate models.
+    </p>
+
+    <h3>The idea</h3>
+    <p>
+      This method adapts checksum principles from data communication. An extra output node (the <strong>checknode</strong>)
+      is added to the network and trained to predict a deterministic function of the primary outputs, such as their sum.
+      For in-distribution inputs, the checknode closely matches the computed sum, keeping the <em>checksum error</em> low.
+      On unfamiliar inputs, the checknode and primary outputs extrapolate differently, causing the checksum error to spike.
+      This discrepancy functions as an OOD flag produced directly within a single forward pass.
+    </p>
+
+    <figure class="fig-pad">
+      <img src="assets/cs_checknode.png" width="3182" height="2360" loading="lazy" decoding="async" alt="A fully connected neural network with grey input nodes, three orange hidden layers, three green regular output nodes, and one red output node at the bottom labelled Checknode.">
+      <figcaption><b>The checknode.</b> A standard regression network with an added output node. The green
+        nodes represent standard predictions, while the red checknode outputs an estimate of the checksum over those predictions.</figcaption>
+    </figure>
+
+    <h3>Results</h3>
+    <p>
+      Evaluated on a 0D auto-ignition combustion dataset (with in-distribution defined as peak temperatures below 2500&nbsp;K),
+      the tuned sine checksum clearly separates ID from OOD points while preserving baseline regression accuracy.
+    </p>
+    <div class="stats">
+      <div class="stat"><b>99.66%</b><span>AUROC, tuned sine checksum</span><span class="sub">0.5 is a coin flip, 1.0 is perfect</span></div>
+      <div class="stat"><b>97.7 &rarr; 0.05%</b><span>Missed OOD at the 99% threshold</span><span class="sub">before &rarr; after the checksum loss</span></div>
+      <div class="stat"><b>1 pass</b><span>Added inference cost</span><span class="sub">compared to N-model ensembles</span></div>
+      <div class="stat"><b>4 terms</b><span>Composite loss</span><span class="sub">prediction + loss + penalty + reward</span></div>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Computational cost</span>
+      <p>
+        Because the checksum function operates strictly on the model's outputs rather than intermediate weights or inputs,
+        the score requires no auxiliary models, sampling passes, or calibrated distance metrics. The computational overhead
+        is limited to evaluating one extra node and a final difference calculation.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="background">
+  <div class="wrap">
+    <div class="sec-head"><h2>Background</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Design motivation</span>
+      <ul>
+        <li>Surrogate networks require dependable reliability indicators to avoid silent failures on unseen input regimes.</li>
+        <li>Unlike classification models with probability distributions, standard regression offers no native uncertainty metric.</li>
+        <li>Uncertainty estimation must remain computationally lightweight to run within real-time simulation pipelines.</li>
+      </ul>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+
+      <h3>When a surrogate fails</h3>
+      <p>
+        Consider a simple 1D example: a network trained to approximate <span class="katex-inline">$y=x$</span> on the interval
+        <span class="katex-inline">$0<x<3$</span>. Outside this interval (<span class="katex-inline">$x\ge 3$</span>), the network
+        extrapolates poorly and fails to indicate that it is operating outside its training bounds.
+      </p>
+      <div class="eq">
+        <span class="eq-label">Piecewise target function (x &ge; 3 unobserved)</span>
+        $$ y = \begin{cases} x & \text{if } x < 3 \\ 3 & \text{if } x \ge 3 \end{cases} $$
+      </div>
+      <p class="small">
+        In general, bare regression outputs cannot distinguish valid interpolations from untrustworthy extrapolations.
+      </p>
+
+      <h3>Existing OOD detection</h3>
+      <p>
+        Standard methods quantify uncertainty through repeated evaluation or ensemble sampling. <strong>Bayesian neural networks</strong>
+        sample from learned weight distributions, <strong>Monte&nbsp;Carlo dropout</strong> aggregates multiple stochastic forward passes,
+        and <strong>deep ensembles</strong> measure variance across several distinct models. While effective, these techniques multiply
+        training and inference overhead. In classification, methods such as <strong>Outlier&nbsp;Exposure</strong> and <strong>energy-based</strong>
+        models structure training so the network explicitly responds differently to out-of-distribution inputs. We apply a similar philosophy
+        to regression without adding inference passes.
+      </p>
+
+      <h3>Checksums</h3>
+      <p>
+        First formalized for serial data transmission by Fletcher in 1982, checksums append verification bytes so receivers can detect
+        data corruption through consistency checks. Traditional checksums are binary (matching or failing), which is impractical for
+        regression models that inherently carry small residual errors. The <strong>soft checksum</strong> instead uses the continuous
+        magnitude of the mismatch between the predicted checknode and the computed output function as a graded OOD metric.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <div class="wrap">
+    <div class="sec-head"><h2>Method</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Design motivation</span>
+      <ul>
+        <li>The checksum function operates solely on output variables, generalizing across regression tasks without adding input-space complexity.</li>
+        <li>The functional form must be straightforward to optimize while sufficiently constrained so that the network cannot trivially satisfy it during extrapolation.</li>
+        <li>Passive training is insufficient: the network must be explicitly regularized to produce inconsistent checknode values on OOD samples to prevent smooth extrapolation.</li>
+      </ul>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+
+      <h3>Augmenting the network</h3>
+      <p>
+        For a regression network mapping inputs to outputs, <span class="katex-inline">$\hat{\mathbf y} = \hat f(\mathbf x;\,\boldsymbol\theta)$</span>,
+        the output layer is expanded by one node to produce both the target predictions and an estimated checksum <span class="katex-inline">$\hat{\mathbb C}_y$</span>.
+      </p>
+      <div class="eq">
+        <span class="eq-label">one network, outputs plus a checknode</span>
+        $$ \left(\hat{\mathbf y},\; \hat{\mathbb C}_y\right) = \hat f(\mathbf x;\,\boldsymbol\theta) $$
+      </div>
+
+      <h3>The checksum function and error</h3>
+      <p>
+        The checksum function <span class="katex-inline">$\mathbb C$</span> is a fixed, deterministic mapping over the predicted outputs.
+        While a simple sum provides a straightforward baseline, composing the sum with a sine function introduces nonlinearity that
+        improves sensitivity. The <strong>checksum error</strong> is defined as the absolute difference between the checknode output
+        and the evaluated checksum function.
+      </p>
+      <div class="eq">
+        <span class="eq-label">summation and sine checksum functions</span>
+        $$ \mathbb C(\mathbf y) = \sum_i y_i, \qquad
+           \mathbb C(\mathbf y) = \sin\!\left(\omega \left| \sum_i y_i \right|\right) $$
+      </div>
+      <div class="eq">
+        <span class="eq-label">checksum error: predicted checknode vs. function of outputs</span>
+        $$ \epsilon_{\mathbb C} = \left| \mathbb C(\hat{\mathbf y}) - \hat{\mathbb C}_y \right| $$
+      </div>
+      <p class="small">
+        Because <span class="katex-inline">$\mathbb C$</span> requires only the model outputs, this metric can be computed directly
+        at inference time without reference labels.
+      </p>
+
+      <h3>A four-part loss</h3>
+      <p>
+        Training optimizes a multi-objective loss function. The primary term is standard mean-squared error (MSE) on the physical target predictions.
+      </p>
+      <div class="eq">
+        <span class="eq-label">prediction loss (MSE)</span>
+        $$ \mathcal L_{\text{MSE}}(\mathbf y, \hat{\mathbf y}) = \frac1n \sum_{i=1}^{k} (y_i - \hat y_i)^2 $$
+      </div>
+      <p>
+        The <strong>checksum loss</strong> <span class="katex-inline">$(\alpha)$</span> fits the checknode to the checksum of the ground-truth targets,
+        while the <strong>checksum penalty</strong> <span class="katex-inline">$(\beta)$</span> penalizes discrepancies between the checknode and the
+        predicted outputs to maintain internal consistency across the training distribution.
+      </p>
+      <div class="eq">
+        <span class="eq-label">checksum loss and checksum penalty</span>
+        $$ \mathcal L_{\text{loss}} = \frac{\alpha}{k}\left(\mathbb C(\mathbf y) - \hat{\mathbb C}_y\right)^2,
+           \qquad
+           \mathcal L_{\text{pen}} = \frac{\beta}{k}\left(\mathbb C(\hat{\mathbf y}) - \hat{\mathbb C}_y\right)^2 $$
+      </div>
+      <p>
+        On out-of-distribution samples, the <strong>checksum reward</strong> <span class="katex-inline">$(\gamma)$</span> encourages discrepancy
+        between the checknode and the predicted checksum. A reciprocal formulation bounded by <span class="katex-inline">$\kappa$</span>
+        and stabilized by <span class="katex-inline">$\mu$</span> prevents gradient instability once separation is established.
+      </p>
+      <div class="eq">
+        <span class="eq-label">checksum reward on OOD samples (saturating)</span>
+        $$ \mathcal L_{\text{rew}} = \gamma \,\min\!\left(\kappa,\;
+           \left[\left(\mathbb C(\hat{\mathbf y}_{\text{OOD}}) - \hat{\mathbb C}_y\right)^2 + \mu\right]^{-1}\right) $$
+      </div>
+      <div class="eq">
+        <span class="eq-label">total loss driving backpropagation</span>
+        $$ \mathcal L_{\text{total}} = \mathcal L_{\text{MSE}} + \mathcal L_{\text{loss}}
+           + \mathcal L_{\text{pen}} + \mathcal L_{\text{rew}} $$
+      </div>
+    </div>
+
+    <div class="block implementation">
+      <span class="tag">Implementation</span>
+      <p class="small">
+        In-distribution data flows through the prediction, checksum loss, and penalty terms; generated OOD data is routed
+        strictly through the reward term. The losses sum into a single scalar for backpropagation.
+      </p>
+      <figure class="fig-wide fig-pad">
+        <img src="assets/cs_training.png" width="3406" height="1409" loading="lazy" decoding="async" alt="Training data flow diagram. In-distribution and out-of-distribution training data enter a neural network whose outputs are predictions plus a predicted checksum. The predictions feed a prediction loss and a checksum function; the checksum function and checknode feed a checksum penalty loss and a checksum reward loss. All losses sum into a total loss used for backpropagation.">
+        <figcaption><b>Training data flow.</b> In-distribution samples drive prediction accuracy and consistency terms, while synthetic out-of-distribution samples drive the reward term.</figcaption>
+      </figure>
+
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Term</th><th>Weight</th><th>Data</th><th>Objective</th></tr></thead>
+          <tbody>
+            <tr><td>Prediction (MSE)</td><td class="num">1.0</td><td>ID</td><td>Fits the surrogate to target data</td></tr>
+            <tr><td>Checksum loss</td><td class="num">&alpha;</td><td>ID</td><td>Aligns checknode with ground-truth checksum</td></tr>
+            <tr><td>Checksum penalty</td><td class="num">&beta;</td><td>ID</td><td>Enforces consistency between predictions and checknode</td></tr>
+            <tr><td>Checksum reward</td><td class="num">&gamma;</td><td>OOD</td><td>Maximizes output discrepancy on OOD points</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ood">
+  <div class="wrap">
+    <div class="sec-head"><h2>OOD Generation</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Design motivation</span>
+      <ul>
+        <li>The reward loss requires representative OOD samples during training, though empirical out-of-distribution data is rarely known in advance.</li>
+        <li>To remain domain-agnostic, synthetic generation must rely strictly on the bounding envelope of the training set.</li>
+        <li>Generating samples both near the distribution boundaries and further into the domain helps the detector establish clear decision margins.</li>
+      </ul>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+      <p>
+        OOD samples are synthesized on the fly from the training data envelope. For each generated point, a subset of input
+        dimensions is sampled outside the observed <span class="katex-inline">$[\min,\max]$</span> range while remaining dimensions
+        stay within range. An <strong>ID&nbsp;Max</strong> parameter controls how many dimensions may remain in-distribution:
+        forcing every dimension out produces corner points far from the distribution, while allowing some dimensions to stay in range
+        seeds points along the immediate decision boundary.
+      </p>
+    </div>
+
+    <div class="block implementation">
+      <span class="tag">Implementation</span>
+      <figure class="fig-wide fig-pad">
+        <img src="assets/cs_ood_gen.png" width="6378" height="3188" loading="lazy" decoding="async" alt="Two scatter plots of pressure versus temperature. Green ID samples form a diagonal band in the centre. Purple generated OOD samples fill the surrounding space: on the left, clustered in four corner blocks away from the data; on the right, also bordering the ID band directly.">
+        <figcaption><b>Synthetic OOD sampling.</b> Green indicates ID data; purple indicates generated OOD points.
+          <b>Left:</b> all dimensions forced out of range, placing samples in distal corners.
+          <b>Right:</b> select dimensions permitted within range, generating points directly along the distribution boundary.</figcaption>
+      </figure>
+      <p class="small">
+        Synthetic OOD points are used solely within the reward loss calculation; they do not enter the prediction or penalty loss terms.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="toy">
+  <div class="wrap">
+    <div class="sec-head"><h2>Toy Problem</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Design motivation</span>
+      <p>
+        A 2D toy problem allows direct visualization of the error surface across the entire domain. Evaluating the network on a uniform
+        grid clarifies how the checksum response relates to input distance from the training manifold. You can explore this exact error
+        surface, output by output, in the <a href="#interactive">interactive demonstration</a> at the top of the page.
+      </p>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+      <p>
+        The in-distribution dataset is defined as a cluster of 2D points near the origin. Each point maps to three distinct functional
+        outputs (periodic, multiplicative, and radial decay) to ensure the checksum does not exploit trivial linear relationships.
+      </p>
+      <div class="eq">
+        <span class="eq-label">three toy outputs from one 2D input</span>
+        $$ y_1 = \sin(x_1) + \cos(x_2), \qquad y_2 = x_1 x_2, \qquad y_3 = e^{-(x_1^2 + x_2^2)} $$
+      </div>
+      <figure class="fig-grid" style="background:none;border:0">
+        <div style="background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden">
+          <img src="assets/cs_toy_data.png" width="560" height="545" loading="lazy" decoding="async" style="padding:14px" alt="Scatter plot of green training points clustered around the origin within roughly plus or minus 0.5 in both axes.">
+          <figcaption><b>In-distribution dataset.</b> A compact cluster of training points sampled near the origin.</figcaption>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden">
+          <img src="assets/cs_toy_error.png" width="1346" height="1140" loading="lazy" decoding="async" style="padding:14px" alt="Heatmap of checksum error over the 2D input domain. A blue low-error island covers the in-distribution region in the middle; error rises sharply to red across the surrounding out-of-distribution area, on a logarithmic colour scale.">
+          <figcaption><b>Domain checksum error.</b> Low error (blue) covers the training domain, rising sharply (red) across extrapolation zones.</figcaption>
+        </div>
+      </figure>
+    </div>
+
+    <div class="block implementation">
+      <span class="tag">Implementation</span>
+      <p>
+        Evaluating the model across the domain <span class="katex-inline">$x_1, x_2 \in [-1, 1]$</span> shows that checksum error
+        correlates closely with actual prediction error on a log-log scale. As prediction error increases in extrapolation regions,
+        the checksum error rises proportionally without requiring access to true reference labels.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="results">
+  <div class="wrap">
+    <div class="sec-head"><h2>Results</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Evaluation objectives</span>
+      <ul>
+        <li>Validation requires evaluating realistic physical simulations where out-of-distribution inputs pose genuine failure risks.</li>
+        <li>Ablation experiments test combinations of loss weights to isolate the impact of each term against an unregularized baseline network.</li>
+        <li>Performance is assessed primarily through AUROC and false negative rates, alongside surrogate regression accuracy.</li>
+      </ul>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+
+      <h3>The combustion dataset</h3>
+      <p>
+        The benchmark is a 0D auto-ignition combustion problem solved with <strong>Cantera</strong>. Seven chemical species
+        (<span class="katex-inline">$C_2H_4,\ O_2,\ H_2,\ CO,\ CO_2,\ H_2O$</span> and inert <span class="katex-inline">$N_2$</span>)
+        interact across three primary reaction pathways. The surrogate model predicts net species production rates
+        <span class="katex-inline">$\omega$</span> from temperature, pressure, and composition. Trajectories with peak temperatures
+        below 2500&nbsp;K constitute in-distribution data, while hotter states are withheld as out-of-distribution targets.
+      </p>
+      <figure class="fig-wide fig-pad">
+        <img src="assets/cs_combustion.png" width="3000" height="1875" loading="lazy" decoding="async" alt="Scatter of pressure versus temperature. Several green in-distribution trajectory bands rise from low temperature up to a dashed vertical line at 2500 K, beyond which the same trajectories continue in red as out-of-distribution.">
+        <figcaption><b>Dataset partitioning.</b> Ignition trajectories in pressure-temperature space. Green samples are in-distribution; trajectories exceeding the 2500&nbsp;K boundary (dashed line) are withheld as OOD validation points.</figcaption>
+      </figure>
+      <p class="small">
+        Network architecture: 3 hidden layers (256 units each), learning rate <span class="katex-inline">$10^{-4}$</span>,
+        batch size 256, 1500 epochs. All reported values represent five-run averages to account for weight initialization variance.
+      </p>
+    </div>
+
+    <div class="block implementation">
+      <span class="tag">Implementation</span>
+
+      <h3>Performance metrics</h3>
+      <ul>
+        <li><strong>FNR (95% / 99%):</strong> False negative rate, measuring the percentage of OOD samples that fall below the 95th or 99th percentile of in-distribution error (lower is better).</li>
+        <li><strong>AUROC:</strong> Area under the receiver operating characteristic curve, representing the probability of ranking a random OOD sample above a random ID sample (higher is better).</li>
+        <li><strong>ID error:</strong> Mean squared error on in-distribution test samples, verifying that checksum regularization does not degrade baseline regression performance (lower is better).</li>
+      </ul>
+
+      <h3>Performance comparison</h3>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Configuration</th><th class="num">FNR 99% &darr;</th><th class="num">AUROC &uarr;</th><th class="num">ID error &darr;</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td>Baseline, summation (&alpha;,&beta;,&gamma; = 0)</td><td class="num">56.98%</td><td class="num">87.86%</td><td class="num">3.07&times;10⁻⁴</td><td>Untrained checknode</td></tr>
+            <tr><td>Baseline, sine (&alpha;,&beta;,&gamma; = 0)</td><td class="num">90.17%</td><td class="num">60.16%</td><td class="num">2.86&times;10⁻⁵</td><td>No separation signal</td></tr>
+            <tr class="total"><td>Summation, &alpha; = 1, &gamma; = 1</td><td class="num better">5.51%</td><td class="num better">98.74%</td><td class="num">7.16&times;10⁻⁵</td><td>Low-complexity configuration</td></tr>
+            <tr><td>Sine, &alpha; = 1 (loss only)</td><td class="num better">1.88%</td><td class="num">99.65%</td><td class="num">1.11&times;10⁻⁴</td><td>Lowest false negative rate</td></tr>
+            <tr class="total"><td>Sine, &alpha; = 1, &gamma; = 1</td><td class="num better">1.89%</td><td class="num better">99.66%</td><td class="num">1.02&times;10⁻⁴</td><td>Highest overall AUROC</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">
+        Best values per column are highlighted in <span style="color:var(--accent);font-weight:600">blue</span>. The summation checksum
+        offers consistent baseline accuracy with low implementation complexity, whereas the sine checksum achieves higher detection
+        sensitivity at a slight trade-off in in-distribution error stability. The complete eight-weight ablation is detailed in the full paper.
+      </p>
+
+      <h3>Error distribution analysis</h3>
+      <p>
+        Plotting checksum error against prediction error highlights the impact of the loss formulation. In an effective detector,
+        OOD points exhibit elevated checksum error alongside prediction error. Without checksum training, the errors remain uncorrelated;
+        incorporating the loss and reward terms aligns them along a clear diagonal, isolating OOD cases.
+      </p>
+      <figure class="fig-grid" style="background:none;border:0">
+        <div style="background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden">
+          <img src="assets/cs_result_baseline.png" width="6887" height="3725" loading="lazy" decoding="async" style="padding:14px" alt="Scatter of prediction error versus checksum error on log axes. Green in-distribution points sit low-left; red inaccurate OOD points are stacked in a vertical column at a similar checksum error, giving no diagonal relationship. Annotation: false negative rate 97.73%.">
+          <figcaption><b>Baseline (no checksum loss).</b> Checksum and prediction error are uncorrelated; 97.7% of OOD samples fall below the detection threshold.</figcaption>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden">
+          <img src="assets/cs_result_tuned.png" width="6789" height="3725" loading="lazy" decoding="async" style="padding:14px" alt="The same axes after training with checksum loss and reward. Green ID points cluster low-left; blue and red OOD points climb along a clear diagonal to the upper right. Annotation: false negative rate 0.05%.">
+          <figcaption><b>Tuned model (loss + reward).</b> A structured correlation emerges; only 0.05% of OOD samples remain undetected at the 99% threshold.</figcaption>
+        </div>
+      </figure>
+      <p class="small">
+        Green points represent in-distribution validation data, red points indicate inaccurate OOD predictions, and blue points denote
+        accurate OOD predictions. The green bounding box marks the accepted region, while the red box highlights unflagged predictions
+        with high error. Checksum training significantly reduces false acceptances in the critical upper-left region.
+      </p>
+
+      <h3>Inference workflow</h3>
+      <p>
+        During inference, evaluation requires only a single forward pass. The network computes target predictions and the checknode
+        simultaneously, after which the checksum function is evaluated. If the calculated difference remains below the threshold,
+        the prediction is accepted; if it exceeds the threshold, the sample is flagged for review or routed to a full physics simulation.
+      </p>
+      <figure class="fig-wide fig-pad">
+        <img src="assets/cs_inference.png" width="3446" height="1444" loading="lazy" decoding="async" alt="Inference flow diagram. Input data enters a trained network producing predictions and a predicted checksum. A checksum function and a checksum error block compare them; low error routes to a green Predictions Accepted box, high error to a red Flag or Reject Predictions box.">
+        <figcaption><b>Inference execution.</b> A single forward pass yields target outputs and the checknode. Discrepancies between the predicted checknode and the evaluated checksum determine acceptance or escalation.</figcaption>
+      </figure>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Scope and limitations</span>
+      <p>
+        The in-distribution threshold here is defined by a fixed temperature cutoff (2500&nbsp;K), which creates a clear benchmark
+        but simplifies boundary definitions found in more complex domains. While the sine checksum provides higher detection sensitivity,
+        the summation checksum offers a more stable baseline for tasks prioritizing raw regression precision. Future work will benchmark
+        these configurations directly against deep ensembles and MC dropout, test alternative nonlinear checksum functions, and evaluate
+        multi-node verification architectures.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>Eli Lewis</strong> &bull; Aerospace Engineering &bull; Scientific machine learning research mentored by Casey Lauer.</p>
+    <div class="hero-links" style="margin-top:24px">
+      <a class="btn" href="index.html#projects">All projects</a>
+      <a class="btn ghost" href="assets/checksum_paper.pdf" target="_blank" rel="noopener">Read the paper (PDF)</a>
+      <a class="btn ghost" href="https://www.linkedin.com/in/elijah-q-lewis/" target="_blank" rel="noopener">LinkedIn</a>
+      <a class="btn ghost" href="mailto:eqlewis2@illinois.edu">eqlewis2@illinois.edu</a>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+<script>
+window.addEventListener('DOMContentLoaded', function(){
+  if(!window.renderMathInElement){
+    document.body.classList.add('no-katex');
+    return;
+  }
+  renderMathInElement(document.body, {
+    delimiters:[
+      {left:'$$',right:'$$',display:true},
+      {left:'$', right:'$', display:false}
+    ],
+    throwOnError:false
+  });
+});
+
+/* Highlight the section currently in view in the nav. */
+(function(){
+  var links = [].slice.call(document.querySelectorAll('.nav-links a'));
+  var map = {};
+  links.forEach(function(a){ var el=document.querySelector(a.getAttribute('href')); if(el) map[a.getAttribute('href').slice(1)]=a; });
+  if(!('IntersectionObserver' in window)) return;
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      var a = map[e.target.id]; if(!a) return;
+      if(e.isIntersecting){ links.forEach(function(l){l.classList.remove('on')}); a.classList.add('on'); }
+    });
+  }, {rootMargin:'-45% 0px -50% 0px'});
+  document.querySelectorAll('section[id]').forEach(function(s){obs.observe(s)});
+})();
+
+/* ------------------------------------------------------------------
+   Live demonstration.
+   Runs the actual trained summation-checksum toy model in the browser
+   with Pyodide + NumPy (weights in assets/toy_checksum_model.json). The
+   forward pass, checksum error, and the 2D error heatmap are all
+   evaluated in Python, mirroring the in-browser approach on baseball.html.
+------------------------------------------------------------------ */
+(function(){
+  var C_RULE='#e2ded6', C_INK='#16181d', C_ID='#1f5fd0', C_OOD='#a35a00', C_MUTE='#6b7078';
+  // diverging blue -> white -> red colormap (log checksum error), colorblind-safe
+  var CB=[31,95,208], CW=[248,248,246], CR=[196,60,40];
+  function mix(a,b,u){return [a[0]+(b[0]-a[0])*u, a[1]+(b[1]-a[1])*u, a[2]+(b[2]-a[2])*u];}
+  function heatColor(t){ return t<0.5 ? mix(CB,CW,t*2) : mix(CW,CR,(t-0.5)*2); }
+
+  var el=function(id){return document.getElementById(id);};
+  var sx=el('s_x'), sy=el('s_y'), sth=el('s_th'),
+      vx=el('v_x'), vy=el('v_y'), vth=el('v_th'),
+      cv=el('cv'), dot=el('dot'), stx=el('statusTxt'),
+      loadBtn=el('loadBtn'), log=el('log'), prog=el('prog'), progBar=el('progBar'),
+      eqline=el('eqline'), roErr=el('ro_err'), roPred=el('ro_pred'), roCall=el('ro_call');
+
+  var MODEL_TEXT=null, worker=null, booting=false, booted=false;
+  var heatErr=null, heatNum=0, heatBitmap=null, lastData=null, lastGeom=null;
+  var inFlight=false, queued=null;
+
+  // ---- Python evaluated inside Pyodide (forward pass + checksum + heatmap) ----
+  var INIT_PY = `
+import json, base64
+import numpy as np
+_m = json.loads(MODEL_TEXT)
+_No = _m['arch']['num_outputs']
+_imean = np.array(_m['input_mean']);  _istd = np.array(_m['input_std'])
+_omean = np.array(_m['output_mean']); _ostd = np.array(_m['output_std'])
+_W=[]; _b=[]
+for _L in _m['layers']:
+    _sh = _L['shape']
+    _W.append(np.frombuffer(base64.b64decode(_L['W']), dtype='<f4').astype(np.float64).reshape(_sh))
+    _b.append(np.frombuffer(base64.b64decode(_L['b']), dtype='<f4').astype(np.float64).reshape(_sh[0]))
+_nl = len(_W)
+
+def _fwd(Xn):
+    a = Xn
+    for i in range(_nl):
+        z = a @ _W[i].T + _b[i]
+        a = np.maximum(z, 0.0) if i < _nl-1 else z
+    return a
+
+def _normin(X):
+    return (X - _imean) / _istd
+
+def single(x1, x2):
+    out = _fwd(_normin(np.array([[x1, x2]])))[0]
+    yp = out[:_No]
+    ck = float(out[_No])
+    C  = float(yp.sum())
+    yreal = yp * _ostd + _omean
+    yt = np.array([np.sin(x1) + np.cos(x2), x1 * x2, np.exp(-(x1**2 + x2**2))])
+    predmse = float(np.mean((yreal - yt[:_No])**2))
+    return {
+        "yp":    [float(v) for v in yp],
+        "yreal": [float(v) for v in yreal],
+        "ytrue": [float(v) for v in yt[:_No]],
+        "ck": ck, "C": C, "err": abs(C - ck), "predmse": predmse
+    }
+
+def heatmap(num):
+    g = np.linspace(-1, 1, num)
+    X, Y = np.meshgrid(g, g)
+    pts = np.stack([X.ravel(), Y.ravel()], 1)
+    out = _fwd(_normin(pts))
+    err = np.abs(out[:, _No] - out[:, :_No].sum(1))
+    return [float(v) for v in err]
+`;
+
+  var WORKER_SRC = `
+let pyodide=null;
+const VERSIONS=[
+  'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',
+  'https://cdn.jsdelivr.net/pyodide/v0.27.2/full/',
+  'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/'
+];
+function post(type,payload){ self.postMessage(Object.assign({type:type}, payload||{})); }
+async function boot(model, initPy){
+  let lastErr=null;
+  for(const base of VERSIONS){
+    try{ importScripts(base+'pyodide.js'); post('log',{msg:'runtime loaded'}); pyodide=await loadPyodide({indexURL:base}); break; }
+    catch(e){ lastErr=e; pyodide=null; }
+  }
+  if(!pyodide) throw lastErr || new Error('could not load pyodide from any CDN');
+  post('log',{msg:'loading numpy...'});
+  await pyodide.loadPackage(['numpy']);
+  pyodide.globals.set('MODEL_TEXT', model);
+  await pyodide.runPythonAsync(initPy);
+  post('ready');
+}
+self.onmessage=async function(ev){
+  const d=ev.data;
+  try{
+    if(d.cmd==='boot'){ await boot(d.model, d.initPy); }
+    else if(d.cmd==='heatmap'){
+      const fn=pyodide.globals.get('heatmap');
+      const r=fn(d.num); const arr=r.toJs(); r.destroy(); fn.destroy();
+      post('heatmap',{num:d.num, err:arr});
+    } else if(d.cmd==='point'){
+      const fn=pyodide.globals.get('single');
+      const r=fn(d.x1,d.y1); const obj=r.toJs({dict_converter:Object.fromEntries}); r.destroy(); fn.destroy();
+      obj.x1=d.x1; obj.y1=d.y1;
+      post('point',{data:obj});
+    }
+  }catch(e){ post('error',{msg:String(e&&e.message?e.message:e)}); }
+};
+`;
+
+  // ------------------------------- helpers -------------------------------
+  function addLog(m){ if(log){ log.textContent = m + '\n' + log.textContent; } }
+  function setStatus(cls,txt){ dot.className='dot'+(cls?' '+cls:''); stx.textContent=txt; }
+  function setProg(on,pct){ if(!prog) return; prog.style.display=on?'block':'none'; if(pct!=null) progBar.style.width=pct+'%'; }
+
+  function hidpi(canvas,h){
+    var r=window.devicePixelRatio||1, w=canvas.clientWidth||600;
+    canvas.width=Math.round(w*r); canvas.height=Math.round(h*r);
+    canvas.style.height=h+'px';
+    var g=canvas.getContext('2d'); g.setTransform(r,0,0,r,0,0);
+    return {g:g,w:w,h:h};
+  }
+
+  function buildHeatBitmap(){
+    if(!heatErr) return;
+    var off=document.createElement('canvas'); off.width=heatNum; off.height=heatNum;
+    var og=off.getContext('2d'); var im=og.createImageData(heatNum,heatNum); var d=im.data;
+    for(var r=0;r<heatNum;r++){
+      for(var c=0;c<heatNum;c++){
+        var erow=heatNum-1-r;                       // image top = y=+1
+        var e=heatErr[erow*heatNum+c];
+        var lg=Math.log(Math.max(1e-4,Math.min(1e3,e)))/Math.LN10;
+        var t=(lg+3)/6; if(t<0)t=0; if(t>1)t=1;     // fixed range 1e-3..1e3
+        var col=heatColor(t); var o=(r*heatNum+c)*4;
+        d[o]=col[0]|0; d[o+1]=col[1]|0; d[o+2]=col[2]|0; d[o+3]=255;
+      }
+    }
+    og.putImageData(im,0,0); heatBitmap=off;
+  }
+
+  function render(){
+    var x=+sx.value, y=+sy.value, th=+sth.value;
+    var pad={l:40,r:14,t:14,b:26};
+    var w0=cv.clientWidth||600;
+    var side=Math.min(w0-pad.l-pad.r, 460);      // square plot area so the disk reads as a circle
+    if(side<160) side=160;
+    var s=hidpi(cv, side+pad.t+pad.b), g=s.g, w=s.w, h=s.h;
+    var L=pad.l+Math.max(0,(w-pad.l-pad.r-side)/2);   // centre the square horizontally
+    var Rr=L+side, T=pad.t, B=T+side;
+    lastGeom={L:L,R:Rr,T:T,B:B};
+    function X(v){ return L+(v+1)/2*(Rr-L); }
+    function Y(v){ return B-(v+1)/2*(B-T); }
+
+    g.clearRect(0,0,w,h);
+    if(heatBitmap){
+      g.imageSmoothingEnabled=true;
+      g.drawImage(heatBitmap, L,T, Rr-L, B-T);
+    } else {
+      g.fillStyle='#f3f1ec'; g.fillRect(L,T,Rr-L,B-T);
+      g.fillStyle='#a9a49a'; g.font='12px ui-monospace,monospace';
+      g.fillText('load the model to compute the error map', L+14, T+28);
+    }
+    // axis frame + ticks
+    g.strokeStyle=C_RULE; g.fillStyle=C_MUTE; g.lineWidth=1; g.font='10px ui-monospace,monospace';
+    for(var i=0;i<=4;i++){
+      var gx=L+(Rr-L)*i/4, gy=T+(B-T)*i/4;
+      g.fillText((-1+2*i/4).toFixed(1), gx-8, B+16);
+      g.fillText((1-2*i/4).toFixed(1), 6, gy+4);
+    }
+    g.strokeStyle='#cec9be'; g.strokeRect(L,T,Rr-L,B-T);
+
+    // ID disk outline (r = 0.5)
+    var Rr2=0.5, steps=64;
+    g.save(); g.beginPath();
+    for(var k=0;k<=steps;k++){
+      var a2=2*Math.PI*k/steps;
+      var px=X(Rr2*Math.cos(a2)), py=Y(Rr2*Math.sin(a2));
+      k?g.lineTo(px,py):g.moveTo(px,py);
+    }
+    g.strokeStyle=heatBitmap?'rgba(22,24,29,.55)':C_INK; g.lineWidth=1.4; g.setLineDash([4,3]); g.stroke();
+    g.restore();
+
+    // query point
+    var flagged = lastData ? (lastData.err>th) : false;
+    var col = flagged ? C_OOD : C_ID;
+    var qx=X(x), qy=Y(y);
+    g.save();
+    g.beginPath(); g.arc(qx,qy,7,0,6.2832);
+    g.fillStyle=col; g.globalAlpha=.9; g.fill();
+    g.globalAlpha=1; g.lineWidth=2.2; g.strokeStyle='#fff'; g.stroke();
+    g.lineWidth=1.4; g.strokeStyle=col; g.stroke();
+    g.restore();
+  }
+
+  function fnum(v){
+    var a=Math.abs(v);
+    if(v===0) return '0.000';
+    if(a>=1000||a<1e-3) return v.toExponential(2);
+    return v.toFixed(3);
+  }
+  function ferr(v){
+    if(v>=100) return v.toExponential(2);
+    if(v>=1)   return v.toFixed(2);
+    if(v>=1e-3)return v.toFixed(4);
+    return v.toExponential(2);
+  }
+  function term(v){ return '<span style="color:var(--accent)">'+fnum(v)+'</span>'; }
+
+  function paint(data){
+    lastData=data;
+    el('t_y1').textContent=fnum(data.ytrue[0]); el('p_y1').textContent=fnum(data.yreal[0]);
+    el('t_y2').textContent=fnum(data.ytrue[1]); el('p_y2').textContent=fnum(data.yreal[1]);
+    el('t_y3').textContent=fnum(data.ytrue[2]); el('p_y3').textContent=fnum(data.yreal[2]);
+
+    var th=+sth.value, flagged=data.err>th;
+    var errCol = flagged ? 'var(--accent-2)' : 'var(--accent)';
+    // checksum computed on normalized outputs; C(yhat) = sum of normalized yhat
+    eqline.innerHTML =
+      'C(ŷ) = ' + term(data.yp[0]) + ' + ' + term(data.yp[1]) + ' + ' + term(data.yp[2]) +
+      ' = <b>' + fnum(data.C) + '</b>' +
+      '<span style="color:#a9a49a">&nbsp;&nbsp;|&nbsp;&nbsp;</span>' +
+      'checknode Ĉ = <b>' + fnum(data.ck) + '</b>' +
+      '<span style="color:#a9a49a">&nbsp;&nbsp;|&nbsp;&nbsp;</span>' +
+      '|C − Ĉ| = <b style="color:'+errCol+'">' + ferr(data.err) + '</b>';
+
+    roErr.textContent = ferr(data.err);
+    roPred.textContent = data.predmse<1e-3 ? data.predmse.toExponential(2) : data.predmse.toFixed(4);
+    roCall.textContent = flagged ? 'FLAG (OOD)' : 'accept (ID)';
+    roCall.style.color = flagged ? C_OOD : C_ID;
+    setStatus(flagged?'busy':'ok', flagged?'flagged (OOD)':'accepted (ID)');
+    render();
+  }
+
+  // ------------------------------- worker flow -------------------------------
+  function ensureWorker(){
+    if(worker) return worker;
+    var blob=new Blob([WORKER_SRC],{type:'application/javascript'});
+    worker=new Worker(URL.createObjectURL(blob));
+    worker.onmessage=function(ev){
+      var d=ev.data;
+      if(d.type==='log'){ addLog(d.msg); setProg(true, booted?70:45); }
+      else if(d.type==='ready'){
+        booted=true; booting=false; setStatus('ok','ready'); setProg(true,75);
+        addLog('runtime ready, computing error map...');
+        worker.postMessage({cmd:'heatmap', num:200});
+      }
+      else if(d.type==='heatmap'){
+        heatNum=d.num; heatErr=d.err; buildHeatBitmap(); setProg(false);
+        addLog('error map ready'); setStatus('ok','live'); render();
+        requestPoint(+sx.value, +sy.value);
+      }
+      else if(d.type==='point'){
+        inFlight=false; paint(d.data);
+        if(queued){ var q=queued; queued=null; requestPoint(q[0],q[1]); }
+      }
+      else if(d.type==='error'){
+        booting=false; setProg(false); setStatus('err','error'); loadBtn.disabled=false;
+        addLog('ERROR: '+d.msg);
+        addLog('If this is a network error, the Pyodide CDN may be blocked on this network.');
+      }
+    };
+    worker.onerror=function(e){ booting=false; setProg(false); setStatus('err','error'); loadBtn.disabled=false; addLog('worker error: '+(e.message||e)); };
+    return worker;
+  }
+
+  function requestPoint(x,y){
+    if(!booted) return;
+    if(inFlight){ queued=[x,y]; return; }
+    inFlight=true; worker.postMessage({cmd:'point', x1:x, y1:y});
+  }
+
+  loadBtn.addEventListener('click', function(){
+    if(booted||booting) return;
+    if(!MODEL_TEXT){ addLog('model file not loaded yet; the page must be served over http (python -m http.server).'); return; }
+    booting=true; loadBtn.disabled=true;
+    setStatus('busy','loading runtime'); setProg(true,10);
+    addLog('downloading python runtime (first run only, ~30MB)...');
+    ensureWorker();
+    worker.postMessage({cmd:'boot', model:MODEL_TEXT, initPy:INIT_PY});
+  });
+
+  // ------------------------------- interaction -------------------------------
+  function syncLabels(){ vx.textContent=(+sx.value).toFixed(2); vy.textContent=(+sy.value).toFixed(2); vth.textContent=(+sth.value).toFixed(2); }
+
+  [sx,sy].forEach(function(s){
+    s.addEventListener('input', function(){ syncLabels(); render(); requestPoint(+sx.value,+sy.value); });
+  });
+  sth.addEventListener('input', function(){
+    syncLabels();
+    if(lastData) paint(lastData); else render();
+  });
+
+  // click / drag on the heatmap to place the point
+  function placeFromEvent(e){
+    if(!lastGeom) return;
+    var rect=cv.getBoundingClientRect();
+    var cxp=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+    var cyp=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+    var L=lastGeom.L,R=lastGeom.R,T=lastGeom.T,B=lastGeom.B;
+    var xv=(cxp-L)/(R-L)*2-1, yv=(1-(cyp-T)/(B-T))*2-1;
+    xv=Math.max(-1,Math.min(1,xv)); yv=Math.max(-1,Math.min(1,yv));
+    sx.value=xv.toFixed(2); sy.value=yv.toFixed(2);
+    syncLabels(); render(); requestPoint(xv,yv);
+  }
+  var dragging=false;
+  cv.addEventListener('mousedown', function(e){ dragging=true; placeFromEvent(e); });
+  window.addEventListener('mousemove', function(e){ if(dragging) placeFromEvent(e); });
+  window.addEventListener('mouseup', function(){ dragging=false; });
+  cv.addEventListener('touchstart', function(e){ placeFromEvent(e); e.preventDefault(); }, {passive:false});
+  cv.addEventListener('touchmove', function(e){ placeFromEvent(e); e.preventDefault(); }, {passive:false});
+
+  window.addEventListener('resize', function(){ clearTimeout(window.__rt); window.__rt=setTimeout(render,150); });
+
+  // ------------------------------- init -------------------------------
+  function boostrap(){
+    syncLabels(); render();
+    fetch('assets/toy_checksum_model.json').then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.text();
+    }).then(function(t){ MODEL_TEXT=t; addLog('model file loaded ('+Math.round(t.length/1024)+' KB). Click "Load model" to start.'); })
+      .catch(function(e){
+        addLog('could not load assets/toy_checksum_model.json : '+e.message);
+        addLog('The demo needs the site served over http (e.g. python -m http.server).');
+      });
+  }
+  if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', boostrap);
+  else boostrap();
+})();
+</script>
+</body>
+</html>

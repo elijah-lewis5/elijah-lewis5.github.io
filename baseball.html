@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guided Baseball , 6-DOF GNC for a Spinning Ball | Eli Lewis</title>
+<meta name="description" content="A full guidance, navigation and control stack that steers a pitched baseball into the strike zone using Magnus force alone: 6-DOF dynamics, IMU-only EKF, closed-form kinematic guidance, reaction-wheel control, and Monte Carlo verification.">
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+
+<style>
+:root{
+  --bg:#faf9f6;
+  --surface:#ffffff;
+  --surface-2:#f3f1ec;
+  --ink:#16181d;
+  --ink-2:#3c4048;
+  --muted:#6b7078;
+  --rule:#e2ded6;
+  --rule-2:#cec9be;
+  --accent:#1f5fd0;
+  --accent-soft:#e8effb;
+  --accent-2:#a35a00;
+  --accent-2-soft:#fbf0e0;
+  --mono:ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --maxw:900px;
+  --wide:1180px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:80px;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--sans);font-size:17px;line-height:1.68;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"kern" 1,"liga" 1;
+}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(31,95,208,.3)}
+a:hover{border-bottom-color:var(--accent)}
+code,kbd{font-family:var(--mono);font-size:.88em}
+
+.nav{
+  position:sticky;top:0;z-index:50;
+  background:rgba(250,249,246,.86);backdrop-filter:saturate(1.6) blur(12px);
+  border-bottom:1px solid var(--rule);
+}
+.nav-in{
+  max-width:var(--wide);margin:0 auto;padding:0 28px;
+  height:56px;display:flex;align-items:center;gap:28px;
+}
+.nav-home{
+  font-weight:650;letter-spacing:-.01em;color:var(--ink);
+  border:0;font-size:15px;white-space:nowrap;
+}
+.nav-links{display:flex;gap:22px;margin-left:auto;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{
+  border:0;color:var(--muted);font-size:13.5px;font-weight:500;
+  letter-spacing:.01em;white-space:nowrap;padding:4px 0;
+  border-bottom:2px solid transparent;transition:color .15s,border-color .15s;
+}
+.nav-links a:hover{color:var(--ink)}
+.nav-links a.on{color:var(--ink);border-bottom-color:var(--accent)}
+
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+.wrap-wide{max-width:var(--wide);margin:0 auto;padding:0 28px}
+section{padding:72px 0;border-top:1px solid var(--rule)}
+section:first-of-type{border-top:0}
+
+.hero{padding:78px 0 5px;border:0}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 18px;
+}
+h1{
+  font-size:clamp(34px,5.4vw,54px);line-height:1.08;letter-spacing:-.028em;
+  font-weight:680;margin:0 0 20px;max-width:16ch;
+}
+.dek{font-size:clamp(18px,2.2vw,21px);line-height:1.55;color:var(--ink-2);max-width:60ch;margin:0 0 30px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:34px}
+.chip{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.03em;
+  padding:5px 11px;border:1px solid var(--rule-2);border-radius:100px;
+  color:var(--ink-2);background:var(--surface);
+}
+.hero-links{display:flex;flex-wrap:wrap;gap:12px}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:8px;font-size:14.5px;font-weight:550;
+  border:1px solid var(--ink);background:var(--ink);color:#fff;
+  cursor:pointer;transition:opacity .15s;
+}
+.btn:hover{opacity:.84;border-bottom-color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule-2)}
+.btn.ghost:hover{border-color:var(--ink);opacity:1}
+.btn[disabled]{opacity:.42;cursor:not-allowed}
+
+.stats{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);
+  border-radius:10px;overflow:hidden;margin:8px 0 0;
+}
+.stat{background:var(--surface);padding:20px 22px}
+.stat b{
+  display:block;font-family:var(--mono);font-size:26px;font-weight:600;
+  letter-spacing:-.02em;line-height:1.15;margin-bottom:6px;
+}
+.stat span{font-size:12.5px;color:var(--muted);line-height:1.4;display:block}
+.stat .sub{font-family:var(--mono);font-size:11px;color:var(--accent-2);margin-top:6px;letter-spacing:.01em}
+
+.sec-head{display:flex;align-items:baseline;gap:16px;margin:0 0 8px}
+.sec-num{
+  font-family:var(--mono);font-size:12.5px;color:var(--accent);
+  letter-spacing:.1em;padding-top:6px;flex:none;
+}
+h2{font-size:clamp(27px,3.6vw,36px);line-height:1.15;letter-spacing:-.024em;font-weight:660;margin:0}
+h3{font-size:20px;letter-spacing:-.014em;font-weight:620;margin:38px 0 12px}
+h4{font-size:15.5px;letter-spacing:-.005em;font-weight:620;margin:26px 0 8px}
+.lede{font-size:18.5px;line-height:1.6;color:var(--ink-2);max-width:62ch;margin:14px 0 0}
+p{margin:0 0 18px;max-width:68ch}
+ul,ol{max-width:68ch;padding-left:22px;margin:0 0 18px}
+li{margin-bottom:8px}
+li::marker{color:var(--muted)}
+strong{font-weight:620}
+
+.block{
+  position:relative;padding-left:26px;margin:40px 0;
+  border-left:2px solid var(--rule-2);
+}
+.block.motivation{border-left-color:var(--accent-2)}
+.block.methodology{border-left-color:var(--accent)}
+.block.implementation{border-left-color:var(--ink-2)}
+.block > .tag{
+  font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--muted);display:block;margin-bottom:10px;
+}
+.block.motivation > .tag{color:var(--accent-2)}
+.block.methodology > .tag{color:var(--accent)}
+.block > h3:first-of-type{margin-top:0}
+
+figure{margin:34px 0;background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+figure img{width:100%;height:auto;background:#fff}
+figcaption{
+  padding:14px 18px;font-size:13.5px;line-height:1.55;color:var(--muted);
+  border-top:1px solid var(--rule);background:var(--surface-2);
+}
+figcaption b{color:var(--ink-2);font-weight:600}
+.fig-wide{
+  width:min(var(--wide), calc(100vw - 56px));
+  margin-left:50%;transform:translateX(-50%);
+}
+.placeholder-note{
+  display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent-2);background:var(--accent-2-soft);
+  border:1px solid #e8d5b4;border-radius:4px;padding:2px 7px;margin-right:8px;vertical-align:1px;
+}
+
+.tbl-scroll{overflow-x:auto;margin:24px 0;border:1px solid var(--rule);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:10px 16px;text-align:left;border-bottom:1px solid var(--rule)}
+th{
+  font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;background:var(--surface-2);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.better{color:var(--accent);font-weight:600}
+tr.total td{background:var(--surface-2);font-weight:600}
+
+.callout{
+  border:1px solid var(--rule);border-left:3px solid var(--accent-2);
+  background:var(--surface);border-radius:0 8px 8px 0;
+  padding:18px 22px;margin:26px 0;font-size:15.5px;line-height:1.6;
+}
+.callout p:last-child{margin-bottom:0}
+.callout .tag{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent-2);display:block;margin-bottom:8px;
+}
+
+pre{
+  background:#15171c;color:#e6e6e6;border-radius:9px;padding:18px 20px;
+  overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.6;margin:22px 0;
+}
+pre .c{color:#8b929e}
+pre .k{color:#8fb8ff}
+pre .s{color:#e0b57a}
+.filelist{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);border-radius:9px;overflow:hidden;margin:22px 0;
+}
+.filelist div{background:var(--surface);padding:13px 16px;font-size:13.5px}
+.filelist code{
+  display:block;color:var(--ink);font-weight:600;margin-bottom:3px;font-size:13px;
+}
+.filelist span{color:var(--muted);font-size:12.5px;line-height:1.45;display:block}
+
+.eq{
+  margin:24px 0;padding:16px 20px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:9px;overflow-x:auto;
+}
+.eq.plain{background:transparent;border:0;padding:6px 0}
+.eq-label{
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  letter-spacing:.06em;margin-bottom:8px;display:block;
+}
+.katex-inline{overflow-wrap:anywhere}
+body.no-katex .katex-inline,
+body.no-katex .eq{font-family:var(--mono);font-size:13.5px;color:var(--ink-2)}
+.katex-display{margin:.4em 0 !important}
+.katex{font-size:1.04em}
+
+.sim{
+  background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  overflow:hidden;margin:32px 0;
+}
+.sim-head{
+  padding:16px 20px;border-bottom:1px solid var(--rule);background:var(--surface-2);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.sim-title{font-weight:620;font-size:15px}
+.sim-status{
+  font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:auto;
+  display:flex;align-items:center;gap:8px;
+}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--rule-2);flex:none}
+.dot.busy{background:var(--accent-2);animation:pulse 1s ease-in-out infinite}
+.dot.ok{background:var(--accent)}
+.dot.err{background:#8a1f1f}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.sim-body{display:grid;grid-template-columns:270px 1fr;gap:0}
+@media(max-width:820px){.sim-body{grid-template-columns:1fr}}
+.sim-controls{padding:20px;border-right:1px solid var(--rule);background:var(--surface)}
+@media(max-width:820px){.sim-controls{border-right:0;border-bottom:1px solid var(--rule)}}
+.ctl{margin-bottom:16px}
+.ctl label{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-size:12.5px;color:var(--ink-2);margin-bottom:5px;font-weight:500;
+}
+.ctl label b{font-family:var(--mono);font-weight:600;font-size:12.5px;color:var(--ink)}
+.ctl input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+.ctl select{
+  width:100%;padding:7px 9px;font-family:var(--sans);font-size:13px;
+  border:1px solid var(--rule-2);border-radius:6px;background:var(--surface);color:var(--ink);
+}
+.ctl.row{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink-2)}
+.ctl.row input{accent-color:var(--accent);margin:0}
+.sim-out{padding:20px;min-width:0}
+.sim-canvases{display:grid;grid-template-columns:1.55fr 1fr;gap:16px}
+@media(max-width:640px){.sim-canvases{grid-template-columns:1fr}}
+.cv-box{border:1px solid var(--rule);border-radius:8px;padding:8px;background:var(--surface)}
+.cv-box h5{
+  margin:0 0 6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);font-weight:500;
+}
+canvas{width:100%;display:block}
+.sim-readout{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--rule);
+}
+.ro b{display:block;font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.01em}
+.ro span{font-size:11.5px;color:var(--muted)}
+.sim-log{
+  font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:14px;
+  white-space:pre-wrap;line-height:1.5;max-height:120px;overflow-y:auto;
+}
+.progress{height:3px;background:var(--rule);border-radius:2px;overflow:hidden;margin-top:10px;display:none}
+.progress.on{display:block}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+.diagram{margin:32px 0;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:24px 20px}
+.diagram svg{width:100%;height:auto;display:block}
+
+footer{border-top:1px solid var(--rule);padding:44px 0 64px;color:var(--muted);font-size:14px}
+footer p{max-width:68ch}
+
+.status-strip{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
+  color:var(--accent-2);background:var(--accent-2-soft);
+  border:1px solid #ecdcc0;border-radius:7px;padding:9px 14px;margin:0 0 30px;
+}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+@media(max-width:760px){.two-col{grid-template-columns:1fr}}
+.tocard{
+  border:1px solid var(--rule);border-radius:9px;padding:18px 20px;background:var(--surface);
+}
+.tocard h4{margin:0 0 8px}
+.tocard p{font-size:14.5px;color:var(--ink-2);margin:0}
+hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
+.small{font-size:14px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="nav-home" href="index.html">Eli Lewis <span style="color:var(--muted);font-weight:400">/ Guided Baseball</span></a>
+    <div class="nav-links">
+      <a href="#interactive">Demonstration</a>
+      <a href="#summary">Summary</a>
+      <a href="#dynamics">1. Dynamics</a>
+      <a href="#navigation">2. Navigation</a>
+      <a href="#guidance">3. Guidance</a>
+      <a href="#control">4. Control</a>
+      <a href="#montecarlo">5. Monte Carlo</a>
+    </div>
+  </div>
+</nav>
+
+<div id="top"></div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Guidance, Navigation and Control. Personal project.</p>
+    <h1>Steering a baseball into the strike zone with spin</h1>
+    <p class="dek">
+      A closed-loop 6-DOF GNC implementation for a pitched baseball. The ball carries one IMU and
+      three reaction wheels, utilizing the magnus effect to steer. Over 0.45s of flight it
+      estimates its state, solves for the spin that puts
+      it on the target, and actuates itself onto that spin. Strike rate goes from
+      25% to 100%.
+    </p>
+  </div>
+</header>
+
+<section id="interactive">
+  <div class="wrap-wide">
+    <div class="sec-head"><h2>Demonstration</h2></div>
+    <p class="lede" style="max-width:70ch">
+      Run a single pitch comparing the GNC implementation with a normal pitch, using python in browser.
+    </p>
+
+    <div class="sim">
+      <div class="sim-head">
+        <button class="btn" id="runBtn">Run pitch</button>
+        <span class="sim-status"><span class="dot" id="dot"></span><span id="statusTxt">idle</span></span>
+      </div>
+      <div class="sim-body">
+        <div class="sim-controls">
+          <div class="ctl">
+            <label>Release speed <b><span id="v_mph">90</span> mph</b></label>
+            <input type="range" id="s_mph" min="70" max="105" step="1" value="90">
+          </div>
+          <div class="ctl">
+            <label>Spin rate <b><span id="v_rpm">2200</span> rpm</b></label>
+            <input type="range" id="s_rpm" min="1200" max="3000" step="50" value="2200">
+          </div>
+          <div class="ctl">
+            <label>Release yaw error <b><span id="v_yaw">0.2</span>°</b></label>
+            <input type="range" id="s_yaw" min="-1.0" max="1.0" step="0.05" value="0.0">
+          </div>
+          <div class="ctl">
+            <label>Release pitch error <b><span id="v_pit">1.0</span>°</b></label>
+            <input type="range" id="s_pit" min="-1.0" max="1.0" step="0.05" value="0.0">
+          </div>
+          <div class="ctl">
+            <label>Release offset x <b><span id="v_dx">0.00</span> m</b></label>
+            <input type="range" id="s_dx" min="-0.4" max="0.4" step="0.01" value="0">
+          </div>
+          <div class="ctl">
+            <label>Release offset z <b><span id="v_dz">0.00</span> m</b></label>
+            <input type="range" id="s_dz" min="-0.4" max="0.4" step="0.01" value="0">
+          </div>
+          <hr class="soft" style="margin:20px 0">
+          <div class="ctl">
+            <label>Target x <b><span id="v_tx">0.00</span> m</b></label>
+            <input type="range" id="s_tx" min="-0.2" max="0.2" step="0.01" value="0">
+          </div>
+          <div class="ctl">
+            <label>Target z <b><span id="v_tz">0.85</span> m</b></label>
+            <input type="range" id="s_tz" min="0.60" max="1.10" step="0.01" value="0.85">
+          </div>
+          <hr class="soft" style="margin:20px 0">
+          <div class="ctl">
+            <label>Control rate</label>
+            <select id="s_rate">
+              <option value="500">500 Hz</option>
+              <option value="250">250 Hz</option>
+            </select>
+          </div>
+          <div class="ctl row">
+            <input type="checkbox" id="s_perfect"><label for="s_perfect" style="margin:0;display:inline">Perfect navigation (truth pass-through)</label>
+          </div>
+          <div class="progress" id="prog"><i id="progBar"></i></div>
+        </div>
+
+        <div class="sim-out">
+          <div class="sim-canvases">
+            <div class="cv-box">
+              <h5>Side view, height vs distance to plate</h5>
+              <canvas id="cvSide" width="760" height="420"></canvas>
+            </div>
+            <div class="cv-box">
+              <h5>Catcher view, at the plate</h5>
+              <canvas id="cvPlate" width="420" height="420"></canvas>
+            </div>
+          </div>
+          <div class="sim-readout">
+            <div class="ro"><b id="ro_miss">n/a</b><span>Miss to target [m]</span></div>
+            <div class="ro"><b id="ro_missu">n/a</b><span>Uncontrolled miss [m]</span></div>
+            <div class="ro"><b id="ro_call">n/a</b><span>Call</span></div>
+            <div class="ro"><b id="ro_t">n/a</b><span>Flight time [s]</span></div>
+            <div class="ro"><b id="ro_tau">n/a</b><span>Peak |torque| [N·m]</span></div>
+            <div class="ro"><b id="ro_nav">n/a</b><span>Position error [m]</span></div>
+          </div>
+          <div class="sim-log" id="log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="summary">
+  <div class="wrap">
+    <div class="sec-head"><h2>Summary</h2></div>
+
+    <h3>The aerodynamics</h3>
+    <p>
+      A 90mph fastball reaches the plate in under half a second. In that time the
+      Magnus force can deflect the ball by more than a foot.
+    </p>
+    <p>
+      Spin is a usable control input with some limitations: The force is always perpendicular
+      to velocity, its magnitude saturates with spin rate, and it can only change as fast
+      as the angular momentum can be reoriented.
+    </p>
+
+    <figure>
+      <img src="assets/pitchdesign.jpg" width="800" height="600" loading="lazy" decoding="async" alt="Diagram of pitch and the effect of ball aerodynamics.">
+      <figcaption>Diagram of pitch movement due to aerodynamic effects. <p class="small">Image source: 
+        <a href="https://www.abca.org/magazine/magazine/2019-4-July_August/The_Hot_Corner_Pitch_Design_Here_to_Stay.aspx" target="_blank" rel="noopener noreferrer">American Baseball Coaches Association</a>.</p></figcaption>
+    </figure>
+    
+    <h3>The strike zone</h3>
+    <p>
+      The target is a 0.432m by 0.55m box at a plane 16.8m from release.
+      The ball either crosses inside it or it does not, which gives a clean terminal miss
+      distance and a pass/fail metric. Guidance default aim is at the centre of the zone, but can be tuned.
+    </p>
+
+    <h3>The GNC</h3>
+    <p>
+      The point of the project was to write every layer of a GNC system myself rather than
+      study them separately.
+    </p>
+    <ul>
+      <li><strong>Plant.</strong> 6-DOF quaternion rigid-body dynamics with reaction wheels, integrated with DOP853.</li>
+      <li><strong>Environment.</strong> Drag plus a spin-dependent Magnus model, validated against published pitch movement.</li>
+      <li><strong>Sensors.</strong> A 6-DOF IMU with white noise and a bias drawn once per flight.</li>
+      <li><strong>Navigation.</strong> An 11-state EKF with position dead-reckoned.</li>
+      <li><strong>Guidance.</strong> A closed-form solve that maps terminal position error to a commanded inertial spin vector.</li>
+      <li><strong>Control.</strong> A feedback-linearising reaction-wheel loop that cancels gyroscopic coupling and slews the ball onto that spin.</li>
+      <li><strong>Verification.</strong> A seeded Monte Carlo over pitcher release dispersion.</li>
+    </ul>
+
+    <div class="diagram">
+      <svg viewBox="0 0 1000 210" role="img" aria-label="Block diagram of the GNC loop: target and estimated state feed the kinematic guidance law, which commands a spin vector to the inner loop, which commands wheel torque to the plant; the IMU measures the plant and feeds the EKF, which closes the loop.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="#3c4048"/>
+          </marker>
+          <style>
+            .bx{fill:#fff;stroke:#cec9be;stroke-width:1.4;rx:8}
+            .bx-a{fill:#e8effb;stroke:#1f5fd0;stroke-width:1.5}
+            .bx-b{fill:#fbf0e0;stroke:#a35a00;stroke-width:1.5}
+            .lbl{font:600 13px ui-sans-serif,system-ui;fill:#16181d}
+            .sub{font:400 10.5px ui-monospace,monospace;fill:#6b7078}
+            .sig{font:400 11px ui-monospace,monospace;fill:#3c4048}
+            .ln{stroke:#3c4048;stroke-width:1.4;fill:none;marker-end:url(#ar)}
+          </style>
+        </defs>
+
+        <rect class="bx bx-b" x="8"   y="58" width="126" height="56" rx="8"/>
+        <text class="lbl" x="71"  y="82"  text-anchor="middle">Target</text>
+        <text class="sub" x="71"  y="98"  text-anchor="middle">(x, z) at plate</text>
+
+        <rect class="bx bx-a" x="182" y="58" width="168" height="56" rx="8"/>
+        <text class="lbl" x="266" y="82"  text-anchor="middle">Guidance</text>
+        <text class="sub" x="266" y="98"  text-anchor="middle">kinematic solve, 50Hz</text>
+
+        <rect class="bx bx-a" x="398" y="58" width="168" height="56" rx="8"/>
+        <text class="lbl" x="482" y="82"  text-anchor="middle">Control</text>
+        <text class="sub" x="482" y="98"  text-anchor="middle">inner loop, 500Hz</text>
+
+        <rect class="bx" x="614" y="58" width="168" height="56" rx="8"/>
+        <text class="lbl" x="698" y="82"  text-anchor="middle">Plant</text>
+        <text class="sub" x="698" y="98"  text-anchor="middle">6-DOF, wheels, aero</text>
+
+        <rect class="bx" x="830" y="58" width="150" height="56" rx="8"/>
+        <text class="lbl" x="905" y="82"  text-anchor="middle">IMU</text>
+        <text class="sub" x="905" y="98"  text-anchor="middle">gyro + accel</text>
+
+        <rect class="bx bx-a" x="398" y="158" width="168" height="46" rx="8"/>
+        <text class="lbl" x="482" y="180" text-anchor="middle">EKF</text>
+        <text class="sub" x="482" y="195" text-anchor="middle">11 states, 500Hz</text>
+
+        <line class="ln" x1="136" y1="86" x2="176" y2="86"/>
+        <line class="ln" x1="352" y1="86" x2="392" y2="86"/>
+        <text class="sig" x="372" y="76" text-anchor="middle">ω</text>
+        <line class="ln" x1="568" y1="86" x2="608" y2="86"/>
+        <text class="sig" x="588" y="76" text-anchor="middle">τ</text>
+        <line class="ln" x1="784" y1="86" x2="824" y2="86"/>
+
+        <path class="ln" d="M905 118 L905 181 L570 181"/>
+        <text class="sig" x="740" y="174" text-anchor="middle">z = [gyro, accel]</text>
+        <path class="ln" d="M398 181 L266 181 L266 120"/>
+        <text class="sig" x="322" y="174" text-anchor="middle">x̂</text>
+        <path class="ln" d="M448 158 L448 120"/>
+      </svg>
+      <p class="small" style="margin:14px 0 0">
+        Guidance never sees truth. It runs on the EKF estimate, and the EKF evaluates its
+        onboard aerodynamic model at its own estimate.
+      </p>
+    </div>
+
+    <h3>Results</h3>
+    <p>
+      20 pitches with release dispersion in angle, speed, spin rate and release point.
+      Each pitch is flown twice, once torque-free as a baseline and once under the full stack.
+    </p>
+    <div class="stats">
+      <div class="stat"><b>0.416 → 0.009m</b><span>Median miss to target</span><span class="sub">46× reduction</span></div>
+      <div class="stat"><b>25 → 100%</b><span>Strike rate</span><span class="sub">0.432 × 0.55m zone</span></div>
+      <div class="stat"><b>0.536 → 0.069m</b><span>90th-percentile miss</span><span class="sub">the tail, not the median</span></div>
+      <div class="stat"><b>0.007m</b><span>EKF terminal position error</span><span class="sub">dead-reckoned, IMU only</span></div>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Scope</span>
+      <p>
+        The reaction wheels are not sized to a real motor. A 5N·m flywheel does not fit
+        inside a baseball. That one component is idealised so the question under test is
+        whether the estimator and the guidance law work. Mass properties, air density, drag
+        and lift coefficients, sensor noise and bias, filter tuning and integration are all
+        physical.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="dynamics">
+  <div class="wrap">
+    <div class="sec-head"><h2>Dynamics and Physics</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Motivation for choices</span>
+      <ul>
+        <li>Spin drives ball trajectory: implement attitude dynamics with full quaternion 6-DOF physics.</li>
+        <li>Free flight with internal actuator: three reaction wheels.</li>
+        <li>Magnus effect is complex: use published aerodynamic models.</li>
+      </ul>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+
+      <h3>State vector</h3>
+      <div class="eq">
+        <span class="eq-label">13 physical states plus one speed per wheel</span>
+        $$ X = \begin{bmatrix} \mathbf{r} & \mathbf{v} & \mathbf{q} & \boldsymbol\omega & \boldsymbol\Omega \end{bmatrix} \in \mathbb{R}^{13+n} $$
+      </div>
+      <ul>
+        <li><span class="katex-inline">$\mathbf r$</span>, position (inertial frame). </li> 
+        <li><span class="katex-inline">$\mathbf v$</span>, velocity (inertial frame).</li>
+        <li><span class="katex-inline">$\mathbf q$</span>, quaternion from body frame to inertial frame.</li>
+        <li><span class="katex-inline">$\boldsymbol\omega$</span>, angular rate (body frame).</li>
+        <li><span class="katex-inline">$\boldsymbol\Omega$</span>, speed of each reaction wheel about its own axis.</li>
+      </ul>
+
+
+      <h3 id="aerodynamics-cl">Aerodynamics</h3>
+      <figure>
+        <img src="assets/magnus.jpeg" width="800" height="600" loading="lazy" decoding="async" alt="Simplified schematic of rotating ball aerodynamics with the Magnus effect.">
+        <figcaption><b>Ball Aerodynamics.</b> Simplified schematic of rotating ball aerodynamics with the Magnus effect. <p class="small">Image source: 
+        <a href="https://doi.org/10.1088/0031-8949/88/01/018101" target="_blank" rel="noopener noreferrer">Garry Robinson and Ian Robinson</a>.</p></figcaption>
+    </figure>
+      
+      <p class="small">The aerodynamic model is based off a 2013 paper by Garry Robinson and Ian Robinson, 
+        <a href="https://doi.org/10.1088/0031-8949/88/01/018101" target="_blank" rel="noopener noreferrer">The motion of an arbitrarily rotating spherical projectile and its application to ball games</a>. </p>
+      <div class="eq">
+        <span class="eq-label">dynamic pressure, drag, Magnus lift</span>
+        $$  q = \tfrac12 \rho \lVert \mathbf v_i \rVert^2, \qquad
+           \mathbf F_D = -\, q\, C_D A \, \hat{\mathbf v}, \qquad
+           \mathbf F_L =  q\, C_L(\omega)\, A \,
+           \frac{\boldsymbol\omega_i \times \hat{\mathbf v}}
+                {\lVert \boldsymbol\omega_i \times \hat{\mathbf v} \rVert} $$
+      </div>
+      <p class="small">Lift uses the inertial spin <span class="katex-inline">$\boldsymbol\omega_i = R(\mathbf q)\,\boldsymbol\omega_b$</span>.</p>
+      <div class="eq">
+        <span class="eq-label">ω in rad/s</span>
+        $$ C_L(\omega) = 0.319\left(1 - e^{-2.48\times10^{-3}\,\omega}\right) $$
+      </div>
+      <p class="small">
+        Invertible and saturating, so a required <span class="katex-inline">$C_L$</span> maps to a unique spin
+        rate. Aerodynamic torque is zero; spin decay over 0.45s is negligible.
+      </p>
+
+      <h3>Rigid-body dynamics with wheels</h3>
+      <div class="eq">
+        <span class="eq-label">angular momentum, attitude dynamics, translation</span>
+        $$ \mathbf L_b = J\,\boldsymbol\omega_b + A\,(I_w \odot \boldsymbol\Omega), \qquad
+           \dot{\boldsymbol\omega}_b = J_{\text{eff}}^{-1}
+           \left( \mathbf T_{\text{ext}} - A\,\boldsymbol\tau_w - \boldsymbol\omega_b \times \mathbf L_b \right) $$
+        $$ \dot{\boldsymbol\Omega} = \boldsymbol\tau_w \oslash I_w - A^{\mathsf T} \dot{\boldsymbol\omega}_b, \qquad
+           \dot{\mathbf q} = \tfrac12\,\Xi(\mathbf q)\,\boldsymbol\omega_b, \qquad
+           \dot{\mathbf v}_i = \mathbf g_i + \frac{\mathbf F_{\text{aero}}}{m} $$
+      </div>
+      <p class="small">
+        Axes stacked in <span class="katex-inline">$A$</span>, inertias <span class="katex-inline">$I_w$</span>.
+        <span class="katex-inline">$-A\boldsymbol\tau_w$</span> is the reaction: wheel torque hits the ball with
+        the opposite sign.
+      </p>
+
+      <h3>Sensors</h3>
+      <p>White noise plus a bias drawn once per flight. The accelerometer senses specific force, so gravity does not appear.</p>
+      <div class="eq">
+        <span class="eq-label">IMU measurement model</span>
+        $$ \mathbf z_g = \boldsymbol\omega_b + \mathbf b_g + \boldsymbol\eta_g, \qquad
+           \mathbf z_a = R(\mathbf q)^{\mathsf T} \frac{\mathbf F_{\text{aero}}}{m} + \mathbf b_a + \boldsymbol\eta_a $$
+      </div>
+      <p class="small">It sees only the aerodynamic force, which does not depend on position.</p>
+
+      <h3>Actuators</h3>
+      <p class="small">
+        Three wheels, <span class="katex-inline">$I_w = 3\times10^{-6}\ \mathrm{kg\,m^2}$</span>, saturated at
+        <span class="katex-inline">$\pm 5\ \mathrm{N\,m}$</span>.
+      </p>
+    </div>
+
+    <div class="block implementation">
+      <span class="tag">Implementation</span>
+
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Quantity</th><th class="num">Value</th><th>Source / note</th></tr></thead>
+          <tbody>
+            <tr><td>Mass <span class="katex-inline">$m$</span></td><td class="num">0.145kg</td><td>MLB regulation</td></tr>
+            <tr><td>Diameter</td><td class="num">0.074m</td><td>MLB regulation</td></tr>
+            <tr><td>Inertia <span class="katex-inline">$I$</span></td><td class="num">0.4 m r²</td><td>solid sphere</td></tr>
+            <tr><td>Air density <span class="katex-inline">$\rho$</span></td><td class="num">1.22kg/m³</td><td>16°C, sea level</td></tr>
+            <tr><td>Drag coefficient <span class="katex-inline">$C_D$</span></td><td class="num">0.45</td><td>constant over the Re band of a pitch</td></tr>
+            <tr><td>Max lift coefficient</td><td class="num">0.319</td><td>saturating fit, spin-dependent</td></tr>
+            <tr><td>Release point</td><td class="num">16.8m, 1.8m</td><td>distance to plate, height</td></tr>
+            <tr><td>Nominal pitch</td><td class="num">90mph, 2200rpm</td><td>backspin about <span class="katex-inline">$-x$</span></td></tr>
+            <tr><td>Wheel inertia <span class="katex-inline">$I_w$</span></td><td class="num">3 × 10⁻⁶ kg m²</td><td>3 orthogonal wheels</td></tr>
+            <tr><td>Torque limit</td><td class="num">±5N·m</td><td><strong>idealised</strong>, not motor-sized</td></tr>
+            <tr><td>Gyro noise / bias</td><td class="num">1e-3 / 1e-4 rad/s</td><td>1σ, bias drawn per flight</td></tr>
+            <tr><td>Accel noise / bias</td><td class="num">1e-3 / 1e-3 m/s²</td><td>1σ, bias drawn per flight</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Aero model validation</h4>
+      <p class="small">Flown with spin and spinless; the difference is the induced break.</p>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Pitch</th><th class="num">Flight [s]</th><th class="num">Horizontal [in]</th><th class="num">Vertical [in]</th><th>Published range</th></tr></thead>
+          <tbody>
+            <tr><td>4-seam fastball, 95mph / 2400rpm</td><td class="num">0.424</td><td class="num">0.0</td><td class="num better">+14.9</td><td>rise 15 to 17in</td></tr>
+            <tr><td>Curveball, 80mph / 2500rpm</td><td class="num">0.504</td><td class="num">0.0</td><td class="num better">−15.5</td><td>drop 10 to 15in</td></tr>
+            <tr><td>Slider, 85mph / 2400rpm</td><td class="num">0.474</td><td class="num better">14.9</td><td class="num">−0.0</td><td>horiz 6 to 15in</td></tr>
+            <tr><td>Gyro spin, 85mph / 2400rpm</td><td class="num">0.474</td><td class="num">−0.8</td><td class="num">0.0</td><td>no movement (control case)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">
+        Gyro spin producing no movement confirms the Magnus direction.
+        <span class="katex-inline">$C_L$</span> ignores seam orientation, so two-seam is out of scope.
+      </p>
+
+      <div class="filelist">
+        <div><code>dynamics.py</code><span>State pack and unpack, quaternion kinematics and DCM, angular momentum, the state derivative, <code>BallParams</code>, and the drag and Magnus model with its <span class="katex-inline">$C_L$</span> fit and validation harness.</span></div>
+        <div><code>imu.py</code><span>6-DOF IMU with per-flight bias draws.</span></div>
+        <div><code>run.py</code><span>Scenario constants, DOP853 integration, terminal events, and the zero-order-hold GNC driver.</span></div>
+      </div>
+
+      <p class="small">
+        DOP853 throughout: <span class="katex-inline">$\text{rtol}=10^{-9}$</span> for the torque-free baseline,
+        <span class="katex-inline">$10^{-8}$</span> across the zero-order-hold steps of a closed-loop flight.
+        Plate and ground are terminal events.
+      </p>
+
+      <figure>
+        <img src="assets/traj.webp" width="1600" height="622" loading="lazy" decoding="async" alt="Two panels. Left: side view of height versus distance to the plate, with an uncontrolled trajectory arriving high above the target line and a controlled trajectory bending down onto it. Right: catcher's view showing the controlled pitch converging onto the target cross inside the strike zone box while the uncontrolled pitch ends above and right of the zone.">
+        <figcaption><b>One nominal pitch.</b> A 90mph fastball with 0.5° of yaw error. The baseline (grey) crosses 1.216m high and 0.147m wide, missing the target by 0.395m and the zone entirely; the controlled pitch (blue) crosses 0.024m from the target.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="navigation">
+  <div class="wrap">
+    <div class="sec-head"><h2>Navigation</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Motivation for choices</span>
+      <ul>
+        <li>A MEMS IMU is the only sensor that fits inside a baseball.</li>
+        <li>Position is unobservable from specific force, so it is dead reckoned rather than estimated.</li>
+        <li>Wheel speeds follow the torque the controller itself commands, so they are propagated open loop.</li>
+        <li>The onboard aero model is the largest remaining error source, so the filter estimates a scale factor on it.</li>
+      </ul>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+      <h3>Estimated state</h3>
+      <p class="small">
+        Eleven elements. Everything the accelerometer and gyro can actually see, plus an 
+        aerodynamic scaling factor to compensate for error.
+      </p>
+      <div class="eq">
+        <span class="eq-label">11 elements</span>
+        $$ \hat{\mathbf x} = \begin{bmatrix}
+          \mathbf v & \mathbf q & \boldsymbol\omega_b & k
+          \end{bmatrix}^{\mathsf T} \in \mathbb{R}^{11} $$
+      </div>
+      <ul>
+        <li><span class="katex-inline">$\mathbf v$</span>, velocity (inertial frame). Observable, because drag makes specific force a function of it.</li>
+        <li><span class="katex-inline">$\mathbf q$</span>, attitude. Observable through the direction of the aerodynamic specific force.</li>
+        <li><span class="katex-inline">$\boldsymbol\omega_b$</span>, body rate. Measured directly by the gyro.</li>
+        <li><span class="katex-inline">$k$</span>, a scale on the onboard aerodynamic force model, initialised at 1.</li>
+      </ul>
+      <p class="small">
+        The aerodynamic flight and onboard model are not the same: the filter carries
+        the discrepancy as a state and lets the accelerometer resolve it.
+      </p>
+
+      <h3>Dead reckoned outside the filter</h3>
+      <p>
+        Two quantities are propagated rather than estimated. Position, because no amount of filtering recovers an unobservable state; and wheel momentum,
+        because it can be integrated from the commanded torques. 
+      </p>
+      <div class="eq">
+        <span class="eq-label">position from the same increment used in the predict step; wheel speeds from commanded torque</span>
+        $$ \hat{\mathbf r} \mathrel{+}= \hat{\mathbf v}\,\Delta t + \tfrac12 \mathbf a\,\Delta t^2, \qquad
+           \boldsymbol\eta \mathrel{+}= \boldsymbol\tau_w \Delta t, \qquad
+           \hat{\boldsymbol\Omega} = \frac{\boldsymbol\eta}{I_w} - A^{\mathsf T}\hat{\boldsymbol\omega}_b $$
+      </div>
+      <p class="small">
+        Neither position nor wheel momentum are corrected through the flight. Their error grows with time, which is exactly as expected.
+      </p>
+
+      <h3>Predict</h3>
+      <p class="small">
+        Translation is sufficiently modeled with a single Euler step on the scaled aero force with gravity. Rotation on the other hand,
+        is much stiffer, requiring higher fidelity integration (RK4).
+      </p>
+      <div class="eq">
+        <span class="eq-label">acceleration, attitude kinematics, wheel-coupled attitude dynamics</span>
+        $$ \mathbf a = \begin{bmatrix} 0 & 0 & -g \end{bmatrix}^{\mathsf T} + \frac{k\,\mathbf F_{\text{aero}}(\hat{\mathbf x})}{m}, \qquad
+           \dot{\mathbf q} = \tfrac12 \Xi(\mathbf q)\,\boldsymbol\omega_b $$
+        $$ \mathbf L_b = J_{\text{eff}}\,\boldsymbol\omega_b + A\boldsymbol\eta, \qquad
+           \dot{\boldsymbol\omega}_b = J_{\text{eff}}^{-1}\!\left(-A\boldsymbol\tau_w - \boldsymbol\omega_b \times \mathbf L_b\right) $$
+      </div>
+      <p class="small">
+        The state-transition Jacobian is analytical everywhere except for aerodynamic forces, which is calculated with
+        forward difference. Only three of eleven columns need differencing.
+      </p>
+      <div class="eq">
+        <span class="eq-label">closed form; only the aero partials are differenced</span>
+        $$ A_{\mathbf v,\,\mathbf x} = \frac{k}{m}\frac{\partial \mathbf F_{\text{aero}}}{\partial \mathbf x}, \quad
+           A_{\mathbf v,\,k} = \frac{\mathbf F_{\text{aero}}}{m}, \quad
+           A_{\mathbf q,\mathbf q} = \tfrac12 \Omega(\boldsymbol\omega_b), \quad
+           A_{\mathbf q,\boldsymbol\omega} = \tfrac12 \Xi(\mathbf q) $$
+        $$ A_{\boldsymbol\omega,\boldsymbol\omega} = J_{\text{eff}}^{-1}\!\left([\mathbf L_b]_\times - [\boldsymbol\omega_b]_\times J_{\text{eff}}\right), \qquad
+           A_d = I + A\,\Delta t, \qquad
+           P^- = A_d\, P\, A_d^{\mathsf T} + Q\,\Delta t $$
+      </div>
+      <p class="small">
+        Commanded torque is clipped to the wheel limit before
+        it enters the prediction, so the filter propagates what the actuator can actually deliver.
+      </p>
+
+      <h3>Update</h3>
+      <p class="small">
+        The gyro sees body rate directly. The accelerometer sees the scaled aerodynamic specific force
+        in body axes, and nothing else: gravity does not appear in a specific-force measurement.
+      </p>
+      <div class="eq">
+        <span class="eq-label">measurement model; the k column falls out of the model being linear in k</span>
+        $$ h(\hat{\mathbf x}) = \begin{bmatrix} \boldsymbol\omega_b \\[2pt] R(\mathbf q)^{\mathsf T}\dfrac{k\,\mathbf F_{\text{aero}}}{m} \end{bmatrix}, \qquad
+           H_{\boldsymbol\omega} = I_3, \qquad
+           H_{k} = \frac{h_{\text{acc}}}{k} $$
+        $$ S = H P^- H^{\mathsf T} + R, \qquad
+           K = P^- H^{\mathsf T} S^{-1}, \qquad
+           \hat{\mathbf x}^+ = \hat{\mathbf x}^- + K\left(\mathbf z - h\right) $$
+      </div>
+      <div class="eq">
+        <span class="eq-label">Joseph form keeps P positive definite</span>
+        $$ P^+ = (I - KH)\,P^-\,(I - KH)^{\mathsf T} + K R K^{\mathsf T} $$
+      </div>
+      <p class="small">
+        The quaternion is renormalised after every update. The residual is
+        dominated by aero model error, not by the sensor.
+      </p>
+
+      <h3>Initialisation</h3>
+      <p>
+        The filter starts from a perturbed estimate, and only the calibration residual is left
+        in the measurement.
+      </p>
+      <div class="eq">
+        <span class="eq-label">residual bias in two horizontal axes tilts the gravity direction; the small-angle quaternion is half the angle</span>
+        $$ \sigma_{\text{tilt}} = \arcsin\!\left(\frac{\sqrt{2}\,b_{\text{res}}}{g}\right),
+           \qquad \sigma_q = \tfrac12 \sigma_{\text{tilt}} $$
+      </div>
+      <p class="small">
+        Velocity is seeded from the release estimate with a 0.01m/s per-axis error,
+        <span class="katex-inline">$k$</span> at 1 with a 0.1 standard deviation, and position at the
+        known release point.
+      </p>
+    </div>
+
+    <div class="block implementation">
+      <span class="tag">Implementation</span>
+      <div class="filelist">
+        <div><code>gnc.py</code><span>The 11-state filter: predict with analytic Jacobian, Joseph-form update, RK4 attitude substeps, dead reckoning, and the sensor and tuning constants.</span></div>
+        <div><code>imu.py</code><span>Gyro and accelerometer model: per-flight constant bias plus white noise on specific force.</span></div>
+        <div><code>dynamics.py</code><span>Shared aero force and quaternion utilities, called by both the plant and the filter.</span></div>
+      </div>
+
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Parameter</th><th class="num">Value</th><th>Rationale</th></tr></thead>
+          <tbody>
+            <tr><td>Filter rate</td><td class="num">500Hz</td><td>matched to the inner control loop</td></tr>
+            <tr><td>Gyro noise</td><td class="num">1e-3 rad/s</td><td>MEMS class part</td></tr>
+            <tr><td>Accelerometer noise</td><td class="num">1e-3 m/s²</td><td>MEMS class part</td></tr>
+            <tr><td>Accelerometer R inflation</td><td class="num">10×</td><td>residual is aero model error, not sensor noise</td></tr>
+            <tr><td>Post-calibration accel bias residual</td><td class="num">1e-3 m/s²</td><td>multi-position calibration</td></tr>
+            <tr><td>Post-calibration gyro bias residual</td><td class="num">1e-5 rad/s</td><td>multi-position calibration</td></tr>
+            <tr><td>Launch velocity 1σ</td><td class="num">0.01m/s / axis</td><td>drag makes velocity observable</td></tr>
+            <tr><td>Initial aero scale 1σ</td><td class="num">0.1</td><td>a 10% model error is a fair starting assumption</td></tr>
+            <tr><td>Process noise on velocity</td><td class="num">1.0 (m/s²)²/Hz</td><td>dominant, absorbs aero model error</td></tr>
+            <tr><td>Process noise on quaternion</td><td class="num">1e-9</td><td>attitude propagates well</td></tr>
+            <tr><td>Process noise on body rate</td><td class="num">1e-6</td><td>rate is measured directly</td></tr>
+            <tr><td>Process noise on aero scale</td><td class="num">1e-6</td><td>near constant, but free to drift slowly</td></tr>
+            <tr><td>Attitude RK4 substeps</td><td class="num">4</td><td>rotation is the stiff part of the propagation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="fig-wide">
+        <img src="assets/nav.webp" width="1600" height="626" loading="lazy" decoding="async" alt="Two line plots against time over a 0.45 second flight. Left: EKF position error rising smoothly from zero to about 0.0067 metres. Right: EKF attitude error staying near 0.01 degrees for the first 0.25 seconds, then spiking to about 0.16 degrees during the terminal manoeuvre and settling near 0.035 degrees.">
+        <figcaption><b>Navigation error, one flight.</b> Position is dead reckoned, so its error only grows: 6.7mm by the plate. Attitude stays inside a tenth of a degree until the terminal spin-up, where the rate command moves faster than the filter tracks it.</figcaption>
+      </figure>
+
+      <figure class="fig-wide">
+        <img src="assets/nav_mc.webp" width="1600" height="628" loading="lazy" decoding="async" alt="The same two error plots overlaid for twenty Monte Carlo pitches. Left: position error curves fanning from zero to between 0.001 and 0.014 metres. Right: attitude error curves mostly below 0.1 degrees, with several excursions to between 0.2 and 0.6 degrees late in flight.">
+        <figcaption><b>Navigation error, 20 pitches.</b> Median position error at the plate is 7mm and the worst case is 14mm, an order of magnitude under the miss the guidance law has to correct. Attitude error is well behaved until the terminal manoeuvre, where the spread opens to a few tenths of a degree.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="guidance">
+  <div class="wrap">
+    <div class="sec-head"><h2>Guidance</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Motivation for choices</span>
+      <p>
+        Guidance turns a position error 16.8m away into a body-rate command, against a force
+        perpendicular to velocity, saturating at <span class="katex-inline">$C_{L,\max}$</span>, on a slew-limited
+        axis. The law inverts the aerodynamics in closed form: no ODE solves, no Jacobians, no
+        iteration.
+      </p>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+      <p class="small">Each outer tick, from <span class="katex-inline">$(\hat{\mathbf r}, \hat{\mathbf v}, \hat{\mathbf q})$</span>:</p>
+
+      <h4>1. Time to go</h4>
+      <p class="small">Along-track speed is nearly constant.</p>
+      <div class="eq plain">$$ t_{\text{go}} = \frac{y_{\text{target}} - \hat y}{\hat v_y} $$</div>
+
+      <h4>2. Required constant acceleration</h4>
+      <p class="small">Two-point boundary value problem.</p>
+      <div class="eq plain">
+        $$ \mathbf a_{\text{req}} = \frac{2\left(\mathbf r_{\text{target}} - \hat{\mathbf r} - \hat{\mathbf v}\,t_{\text{go}}\right)}{t_{\text{go}}^2} $$
+      </div>
+
+      <h4>3. Remove what is not commanded</h4>
+      <p class="small">Gravity and drag act regardless.</p>
+      <div class="eq plain">
+        $$ \mathbf a_{\text{cmd}} = \mathbf a_{\text{req}} - \mathbf g
+           - \underbrace{\left(-\frac{ q\, C_D A}{m}\,\hat{\mathbf v}\right)}_{\text{drag}} $$
+      </div>
+
+      <h4>4. Project onto what Magnus can produce</h4>
+      <p class="small">The along-track part is unachievable.</p>
+      <div class="eq plain">
+        $$ \mathbf a_\perp = \mathbf a_{\text{cmd}} - \hat{\mathbf v}\,\frac{\hat{\mathbf v}\cdot\mathbf a_{\text{cmd}}}{\lVert \hat{\mathbf v}\rVert^2} $$
+      </div>
+
+      <h4>5. Clip required lift coefficient</h4>
+      <p class="small">
+        Magnus force set to <span class="katex-inline">$m\,\mathbf a_\perp$</span>, clipped short of saturation.
+      </p>
+      <div class="eq plain">
+        $$ C_{L,\text{req}} = \min\!\left(\frac{m \lVert \mathbf a_\perp \rVert}{ q\,A},\; 0.99\,C_{L,\max}\right) $$
+      </div>
+
+      <h4>6. Invert the lift coefficient equation</h4>
+      <p class="small">Invert the <a href="#aerodynamics-cl"><span class="katex-inline">$C_L$</span> aerodynamics</a> from the physics section.</p>
+      <div class="eq plain">
+        $$ \lVert\boldsymbol\omega_{\text{cmd}}\rVert = \frac{-\ln\!\left(1 - C_{L,\text{req}}/C_{L,\max}\right)}{2.48\times10^{-3}} $$
+      </div>
+
+      <h4>7. Calculate spin direction</h4>
+      <p class="small">Direction, from the Magnus cross product:</p>
+      <div class="eq plain">
+        $$ \hat{\boldsymbol\omega}_{\text{cmd}} = \frac{\hat{\mathbf v}\times\mathbf a_\perp}{\lVert \hat{\mathbf v}\times\mathbf a_\perp \rVert} $$
+      </div>
+
+      <h4>8. Rotate into body axes</h4>
+      <div class="eq plain">$$ \boldsymbol\omega_{\text{cmd}}^{b} = R(\hat{\mathbf q})^{\mathsf T}\,\boldsymbol\omega_{\text{cmd}}^{i} $$</div>
+    </div>
+
+    <div class="block implementation">
+      <span class="tag">Implementation</span>
+      <p class="small"><code>w_setpoint()</code> in <code>gnc.py</code>: thirty lines, no solver, no state, 50Hz.
+        The code calls the projected vector <code>a_guid</code>; it is <span class="katex-inline">$\mathbf a_\perp$</span> above.</p>
+      <pre><span class="c"># gnc.py, the guidance law in full</span>
+t_go = (target[<span class="s">1</span>] - r_i[<span class="s">1</span>]) / v_i[<span class="s">1</span>]
+<span class="k">if</span> t_go &lt; <span class="s">0.09</span>:                                       <span class="c"># terminal freeze</span>
+    <span class="k">return</span> np.zeros(<span class="s">3</span>), np.zeros(<span class="s">3</span>), np.zeros(<span class="s">3</span>)
+
+a      = <span class="s">2</span> * (target - r_i - v_i * t_go) / (t_go**<span class="s">2</span>)    <span class="c"># required accel</span>
+a_cmd  = a - a_g - a_d                                  <span class="c"># strip gravity + drag</span>
+a_guid = a_cmd - v_i * np.dot(v_i, a_cmd) / v_norm2     <span class="c"># strip along-track</span>
+
+C_L_req  = <span class="k">min</span>(np.linalg.norm(a_guid) * p.m / (q_dyn * p.area), C_L_max*<span class="s">.99</span>)
+w_cmd_i  = np.cross(v_i, a_guid) / v_norm2              <span class="c"># direction</span>
+w_cmd_i /= np.linalg.norm(w_cmd_i)
+w_cmd_i *= -np.log(<span class="s">1</span> - C_L_req/C_L_max) / <span class="s">2.48E-3</span>       <span class="c"># invert C_L(w)</span></pre>
+
+      <h4>Known limitations</h4>
+      <ul>
+        <li><strong><span class="katex-inline">$1/t_{\text{go}}^2$</span> singularity.</strong> The solve blows up as
+          <span class="katex-inline">$t_{\text{go}} \to 0$</span>, so it is frozen below 0.09s and the last command is
+          held. Wheel torque now peaks at 4.2 of 5N·m and never saturates.</li>
+        <li><strong>Constant acceleration is approximate.</strong> Re-solving at 50Hz means it
+          only holds 20ms at a time.</li>
+        <li><strong>The axes differ.</strong> Vertical modulates backspin; lateral reorients the axis.</li>
+      </ul>
+
+      <figure>
+        <img src="assets/guid.webp" width="1600" height="625" loading="lazy" decoding="async" alt="Two panels. Left: catcher view with the strike zone box, the target, and a colour-coded track of where each guidance solve predicts the ball will cross, walking down from 1.7 metres onto the target. Right: time histories of the three components of the guidance acceleration, with the vertical component rising to about 4.5 metres per second squared before dropping to zero.">
+        <figcaption><b>The guidance solve converging.</b> Each dot is one outer tick's prediction of the crossing point under
+          <span class="katex-inline">$\mathbf a_\perp$</span>, coloured by time. Early solves land short because Magnus cannot
+          deliver the full <span class="katex-inline">$\mathbf a_{\text{cmd}}$</span>; as flight time is spent the prediction
+          walks onto the flown crossing (black ring). The drop to zero at 0.36s is the terminal freeze.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="control">
+  <div class="wrap">
+    <div class="sec-head"><h2>Control</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Motivation for choices</span>
+      <ul>
+        <li>Spin at 2200 rpm makes <span class="katex-inline">$\mathbf L$</span> large and cross 
+        coupled across axes.</li>
+        <li><span class="katex-inline">$\mathbf L$</span> Coupling also resists change of spin direction: negate it from estimated states.</li>
+        <li>Aiming and slewing are different problems on different timescales: use zero-order hold on guidance commands.</li>
+      </ul>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+      <p class="small">Cancel the gyroscopic coupling onto the wheel axes.</p>
+      <div class="eq plain">
+        $$ \boldsymbol\tau_{\text{gyro}} = -A^{\mathsf T}\left(\boldsymbol\omega_b \times \mathbf L_b\right),
+           \qquad \mathbf L_b = J\boldsymbol\omega_b + A(I_w \odot \boldsymbol\Omega) $$
+      </div>
+      <p class="small">Drive rate error to zero on a chosen time constant.</p>
+      <div class="eq">
+        <span class="eq-label">first-order rate loop, t_settle = 0.02s</span>
+        $$ \dot{\boldsymbol\omega}_{\text{des}} = \frac{\boldsymbol\omega_{\text{cmd}}^{b} - \boldsymbol\omega_b}{t_{\text{settle}}},
+           \qquad \boldsymbol\tau_{\text{fb}} = -A^{\mathsf T}\left(J_{\text{eff}}\,\dot{\boldsymbol\omega}_{\text{des}}\right) $$
+        $$ \boldsymbol\tau = \operatorname{clip}\!\left(\boldsymbol\tau_{\text{gyro}} + \boldsymbol\tau_{\text{fb}},\; \pm\tau_{\max}\right) $$
+      </div>
+
+      <h3>Rates</h3>
+      <p>
+        Inner loop and EKF at 500Hz, guidance at 50Hz. The 10:1 separation lets guidance treat
+        the inner loop as instantaneous. Torque is zero-order-hold.
+      </p>
+    </div>
+
+    <div class="block implementation">
+      <p class="small"><code>inner_loop()</code> in <code>gnc.py</code>.</p>
+      <pre><span class="c"># gnc.py, the inner loop in full</span>
+L_b       = p.J @ w_b + p.A @ (p.I_w * Om)      <span class="c"># wheel momentum included</span>
+tau_gyro  = -p.A.T @ np.cross(w_b, L_b)         <span class="c"># cancel the cross coupling</span>
+
+w_dot_des = (w_cmd_b - w_b) / t_settle          <span class="c"># first-order error decay</span>
+tau_fb    = -p.A.T @ (p.J_eff @ w_dot_des)      <span class="c"># torque that produces it</span>
+
+tau = np.clip(tau_gyro + tau_fb, -p.tau_limit, p.tau_limit)</pre>
+      
+      <figure class="fig-wide">
+        <img src="assets/ctrl.webp" width="1900" height="373" loading="lazy" decoding="async" alt="Four panels. The first three show body rate about x, y and z: a stepped commanded setpoint in red, the achieved rate in blue, and truth as a black dotted line lying on top of the achieved rate. The fourth shows three wheel torques oscillating within plus and minus five newton-metres, peaking near four late in flight without touching the limits.">
+        <figcaption><b>Inner loop tracking.</b> Achieved rate (blue) against the 50Hz commanded setpoint (red) and truth (dotted).
+          The loop tracks the step of each outer tick within its 0.02s time constant; truth and the estimate are indistinguishable
+          at this scale. Torque peaks at 4.2N·m and never reaches the ±5N·m limit.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="montecarlo">
+  <div class="wrap">
+    <div class="sec-head"><h2>Monte Carlo</h2></div>
+
+    <div class="block motivation">
+      <span class="tag">Motivation for choices</span>
+      <ul>
+        <li>Dispersion comes from release conditions, the variation a pitcher cannot remove.
+          Position offset is the hardest: a pure bias that has to be flown out.</li>
+        <li>Vertical and lateral miss are reported separately; the axes are not equally hard.</li>
+        <li>Release dispersion is drawn from a single <code>RandomState(4000)</code>; each trial's IMU biases
+          and EKF initialisation are seeded from its index. The whole campaign reproduces exactly.</li>
+      </ul>
+    </div>
+
+    <div class="block methodology">
+      <span class="tag">Methodology</span>
+      <p>20 pitches. Dispersion, 1σ:</p>
+      <ul>
+        <li>Release angle 0.25° in yaw and pitch.</li>
+        <li>Speed 1.5mph, spin rate 100rpm.</li>
+        <li>Release point 0.1m in both <span class="katex-inline">$x$</span> and <span class="katex-inline">$z$</span>.</li>
+      </ul>
+      <p>Per trial:</p>
+      <ol>
+        <li>Draw the dispersion from the trial's seeded generator.</li>
+        <li>Fly the baseline: torque-free, DOP853.</li>
+        <li>Fly it again closed-loop: fresh IMU biases, fresh EKF from a perturbed estimate.</li>
+        <li>Terminate at the plate or the ground; record the crossing.</li>
+      </ol>
+    </div>
+
+    <div class="block implementation">
+      <span class="tag">Implementation</span>
+
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Metric</th><th class="num">Uncontrolled</th><th class="num">EKF + kinematic GNC</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr class="total"><td>Combined miss, median</td><td class="num">0.416m</td><td class="num better">0.009m</td><td>distance to target at the plate</td></tr>
+            <tr><td>Combined miss, p90</td><td class="num">0.536m</td><td class="num better">0.069m</td><td>the tail</td></tr>
+            <tr><td>Vertical <span class="katex-inline">$|\Delta z|$</span>, median</td><td class="num">0.402m</td><td class="num better">0.007m</td><td>modulate existing backspin</td></tr>
+            <tr><td>Vertical <span class="katex-inline">$|\Delta z|$</span>, p90</td><td class="num">0.526m</td><td class="num better">0.063m</td><td></td></tr>
+            <tr><td>Lateral <span class="katex-inline">$|\Delta x|$</span>, median</td><td class="num">0.074m</td><td class="num better">0.004m</td><td>reorient the spin axis</td></tr>
+            <tr><td>Lateral <span class="katex-inline">$|\Delta x|$</span>, p90</td><td class="num">0.195m</td><td class="num better">0.026m</td><td></td></tr>
+            <tr><td>Crossing spread <span class="katex-inline">$\sigma_z$</span></td><td class="num">0.133m</td><td class="num better">0.026m</td><td>dispersion, not bias</td></tr>
+            <tr><td>Crossing spread <span class="katex-inline">$\sigma_x$</span></td><td class="num">0.122m</td><td class="num better">0.023m</td><td></td></tr>
+            <tr class="total"><td>Strike rate</td><td class="num">25%</td><td class="num better">100%</td><td>inside the 0.432 × 0.55m box</td></tr>
+            <tr><td>Peak wheel torque, median</td><td class="num">n/a</td><td class="num">1.83 of 5N·m</td><td>no saturation on any trial</td></tr>
+            <tr><td>Terminal EKF position error, median</td><td class="num">n/a</td><td class="num">0.007m</td><td>dead-reckoned, IMU only</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+
+      <figure class="fig-wide">
+        <img src="assets/mc.webp" width="1800" height="482" loading="lazy" decoding="async" alt="Three-panel Monte Carlo figure. Left: catcher-view scatter of crossing points, with grey uncontrolled points scattered above and around the strike zone box and blue controlled points collapsed into a tight cluster on the target. Middle: a bundle of twenty trajectory pairs, the grey ones arriving high and the blue ones converging on the target line at the plate. Right: cumulative miss distributions, the controlled curve reaching one hundred percent below 0.12 metres while the uncontrolled curve stretches out past 0.6 metres.">
+        <figcaption><b>20 dispersed pitches.</b> The uncontrolled (grey) scatters
+          outside the zone; the controlled (blue) aligns onto the target. In the miss distribution every controlled
+          pitch lands inside 0.12m, against a spread reaching 0.68m uncontrolled.</figcaption>
+      </figure>
+
+      <h4>Results</h4>
+      <ul>
+        <li><strong>Controlled pitches perform significantly better.</strong> Every controlled pitch
+          lands closer to the target than any of the uncontrolled pitches. 25% strike rate to 100% strike rate.</li>
+        <li><strong>Spin is not tracked mid-flight.</strong> The setpoint steps every 20ms and the ball is
+          slew-limited, so the commanded and achieved rates only agree in the mean. It does not matter:
+          what reaches the plate is the integral of the force, not the instantaneous rate.</li>
+        <li><strong>Navigation is the same order as the miss.</strong> Median EKF error at the plate is
+          0.007m against a median miss of 0.009m. Guidance tuning alone will not go much further; the
+          dead-reckoned position is the floor.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+<footer>
+  <div class="wrap">
+    <p><strong>Eli Lewis</strong>, guidance, navigation and control.</p>
+    <div class="hero-links" style="margin-top:24px">
+      <a class="btn" href="index.html#projects">All projects</a>
+      <a class="btn ghost" href="https://www.linkedin.com/in/elijah-q-lewis/" target="_blank" rel="noopener">LinkedIn</a>
+      <a class="btn ghost" href="assets/resume.pdf">Resume</a>
+      <a class="btn ghost" href="mailto:eqlewis2@illinois.edu">eqlewis2@illinois.edu</a>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+<script>
+window.addEventListener('DOMContentLoaded', function(){
+  if(!window.renderMathInElement){
+    document.body.classList.add('no-katex');
+    return;
+  }
+  renderMathInElement(document.body, {
+    delimiters:[
+      {left:'$$',right:'$$',display:true},
+      {left:'$', right:'$', display:false}
+    ],
+    throwOnError:false
+  });
+});
+
+(function(){
+  var links = [].slice.call(document.querySelectorAll('.nav-links a'));
+  var map = {};
+  links.forEach(function(a){ var el=document.querySelector(a.getAttribute('href')); if(el) map[a.getAttribute('href').slice(1)]=a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      var a = map[e.target.id]; if(!a) return;
+      if(e.isIntersecting){ links.forEach(function(l){l.classList.remove('on')}); a.classList.add('on'); }
+    });
+  }, {rootMargin:'-45% 0px -50% 0px'});
+  document.querySelectorAll('section[id]').forEach(function(s){obs.observe(s)});
+})();
+
+(function(){
+  var pairs = [['s_mph','v_mph',0],['s_rpm','v_rpm',0],['s_yaw','v_yaw',2],['s_pit','v_pit',2],
+               ['s_dx','v_dx',2],['s_dz','v_dz',2],['s_tx','v_tx',2],['s_tz','v_tz',2]];
+  pairs.forEach(function(p){
+    var s=document.getElementById(p[0]), v=document.getElementById(p[1]);
+    function up(){ v.textContent = Number(s.value).toFixed(p[2]); }
+    s.addEventListener('input', up); up();
+  });
+})();
+
+var PY_DIR = 'py/';
+var PY_MODULES = ["dynamics.py", "imu.py", "gnc.py", "run.py"];
+
+function loadPySources(){
+  return Promise.all(PY_MODULES.map(function(name){
+    return fetch(PY_DIR + name).then(function(r){
+      if(!r.ok) throw new Error(PY_DIR + name + ' -> HTTP ' + r.status);
+      return r.text();
+    }).then(function(txt){ return [name, txt]; });
+  })).then(function(pairs){
+    var out = {};
+    pairs.forEach(function(p){ out[p[0]] = p[1]; });
+    return out;
+  });
+}
+
+var WORKER_SRC = `
+let pyodide = null;
+const VERSIONS = [
+  'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',
+  'https://cdn.jsdelivr.net/pyodide/v0.27.2/full/',
+  'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/'
+];
+
+function post(type, payload){ self.postMessage(Object.assign({type:type}, payload||{})); }
+
+async function boot(files){
+  let lastErr = null;
+  for (const base of VERSIONS){
+    try {
+      importScripts(base + 'pyodide.js');
+      post('log', {msg:'runtime ' + base.match(/v[\\d.]+/)[0] + ' loaded'});
+      pyodide = await loadPyodide({indexURL: base});
+      break;
+    } catch(e){ lastErr = e; pyodide = null; }
+  }
+  if(!pyodide) throw lastErr || new Error('could not load pyodide from any CDN');
+
+  post('log', {msg:'loading numpy + scipy...'});
+  await pyodide.loadPackage(['numpy','scipy']);
+  post('log', {msg:'writing project sources...'});
+
+  pyodide.FS.mkdirTree('/proj/matplotlib');
+  pyodide.FS.writeFile('/proj/matplotlib/__init__.py',
+    'class _N:\\n    def __getattr__(self, k): return _N()\\n    def __call__(self, *a, **k): return _N()\\n');
+  pyodide.FS.writeFile('/proj/matplotlib/pyplot.py',
+    'from . import _N\\ndef __getattr__(k): return _N()\\n');
+  pyodide.FS.writeFile('/proj/matplotlib/lines.py', 'class Line2D:\\n    def __init__(self,*a,**k): pass\\n');
+
+  for (const [name, src] of Object.entries(files)){
+    pyodide.FS.writeFile('/proj/' + name, src);
+  }
+  await pyodide.runPythonAsync(\`
+import sys
+sys.path.insert(0, '/proj')
+import numpy as np
+import run as B
+from dynamics import aero_wrapper
+from gnc import make_kinematic_gnc
+
+def run_pitch(mph, rpm, dyaw, dpitch, dx, dz, tx, tz, rate, perfect):
+    p   = B.make_ball()
+    fns = aero_wrapper(p)
+    x0  = B.release_state(p, dyaw, dpitch, mph, rpm, dx=dx, dz=dz)
+
+    nom = B.nominal_trajectory(p, x0, fns, t_max=2.0)
+    target = np.array([tx, tz])
+
+    outer = 50.0 if rate >= 250 else 25.0
+    gnc = make_kinematic_gnc(p, fns, target, x0, seed=42, t_max=2.0,
+                             flight_time=nom.t[-1], log=True,
+                             perfect_nav=bool(perfect),
+                             inner_rate=rate, outer_rate=outer)
+    sol = B.simulate_gnc(p, x0, fns, gnc, t_max=2.0, rate=rate)
+
+    def thin(a, n=260):
+        a = np.asarray(a, float)
+        if a.shape[-1] <= n: return a
+        idx = np.unique(np.linspace(0, a.shape[-1]-1, n).astype(int))
+        return a[..., idx]
+
+    tau = np.asarray(gnc.log['tau'], float)
+    pe  = gnc.log['pos_err']
+    xc, zc = float(sol.y[0,-1]), float(sol.y[2,-1])
+    xu, zu = float(nom.y[0,-1]), float(nom.y[2,-1])
+
+    return dict(
+        nom_y = thin(nom.y[1]).tolist(), nom_z = thin(nom.y[2]).tolist(),
+        nom_x = thin(nom.y[0]).tolist(),
+        sol_y = thin(sol.y[1]).tolist(), sol_z = thin(sol.y[2]).tolist(),
+        sol_x = thin(sol.y[0]).tolist(),
+        end_c = [xc, zc], end_u = [xu, zu],
+        miss_c = float(np.hypot(xc-tx, zc-tz)),
+        miss_u = float(np.hypot(xu-tx, zu-tz)),
+        strike_c = bool(B.in_zone(xc, zc)), strike_u = bool(B.in_zone(xu, zu)),
+        t_flight = float(sol.t[-1]),
+        tau_peak = float(np.abs(tau).max()) if tau.size else 0.0,
+        tau_lim  = float(B.WHEEL_TAU_LIMIT),
+        nav_err  = float(pe[-1]) if pe else float('nan'),
+        zone = [B.ZONE_W, B.ZONE_H, B.ZONE_BOT, B.ZONE_TOP],
+        target = [tx, tz],
+    )
+\`);
+  post('ready');
+}
+
+self.onmessage = async function(ev){
+  const d = ev.data;
+  try{
+    if(d.cmd === 'boot'){ await boot(d.files); }
+    else if(d.cmd === 'run'){
+      if(!pyodide){ post('error',{msg:'runtime not ready'}); return; }
+      post('log', {msg:'flying pitch...'});
+      const fn = pyodide.globals.get('run_pitch');
+      const res = fn(d.p.mph, d.p.rpm, d.p.yaw, d.p.pit, d.p.dx, d.p.dz,
+                     d.p.tx, d.p.tz, d.p.rate, d.p.perfect ? 1 : 0);
+      const obj = res.toJs({dict_converter: Object.fromEntries});
+      res.destroy(); fn.destroy();
+      post('result', {data: obj});
+    }
+  }catch(e){ post('error', {msg: String(e && e.message ? e.message : e)}); }
+};
+`;
+
+(function(){
+  var worker=null, booted=false, busy=false;
+  var btn=document.getElementById('runBtn'),
+      dot=document.getElementById('dot'),
+      stx=document.getElementById('statusTxt'),
+      log=document.getElementById('log'),
+      prog=document.getElementById('prog'),
+      progBar=document.getElementById('progBar');
+
+  function setStatus(cls, txt){ dot.className='dot'+(cls?' '+cls:''); stx.textContent=txt; }
+  function addLog(m){ log.textContent = m + '\n' + log.textContent; }
+  function setProg(on, pct){ prog.classList.toggle('on', !!on); if(pct!=null) progBar.style.width=pct+'%'; }
+
+  function ensureWorker(){
+    if(worker) return worker;
+    var blob = new Blob([WORKER_SRC], {type:'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    worker.onmessage = function(ev){
+      var d = ev.data;
+      if(d.type==='log'){ addLog(d.msg); setProg(true, booted?70:45); }
+      else if(d.type==='ready'){ booted=true; setProg(true,80); addLog('runtime ready, running pitch'); worker.postMessage({cmd:'run', p:params()}); }
+      else if(d.type==='result'){ busy=false; setProg(false); btn.disabled=false; setStatus('ok','done'); draw(d.data); readout(d.data); addLog('pitch complete'); }
+      else if(d.type==='error'){ busy=false; setProg(false); btn.disabled=false; setStatus('err','error'); addLog('ERROR: '+d.msg);
+        addLog('If this is a network error, the Pyodide CDN may be blocked on this network.'); }
+    };
+    worker.onerror = function(e){ busy=false; btn.disabled=false; setProg(false); setStatus('err','error'); addLog('worker error: '+(e.message||e)); };
+    return worker;
+  }
+
+  function params(){
+    return {
+      mph:+document.getElementById('s_mph').value,
+      rpm:+document.getElementById('s_rpm').value,
+      yaw:+document.getElementById('s_yaw').value,
+      pit:+document.getElementById('s_pit').value,
+      dx:+document.getElementById('s_dx').value,
+      dz:+document.getElementById('s_dz').value,
+      tx:+document.getElementById('s_tx').value,
+      tz:+document.getElementById('s_tz').value,
+      rate:+document.getElementById('s_rate').value,
+      perfect:document.getElementById('s_perfect').checked
+    };
+  }
+
+  btn.addEventListener('click', function(){
+    if(busy) return;
+    busy=true; btn.disabled=true; setStatus('busy', booted?'running':'loading runtime'); setProg(true, 10);
+    var w = ensureWorker();
+    if(booted){ addLog('flying pitch...'); w.postMessage({cmd:'run', p:params()}); return; }
+    addLog('loading project sources...');
+    loadPySources().then(function(files){
+      addLog('downloading python runtime (first run only, ~25MB)...');
+      w.postMessage({cmd:'boot', files:files});
+    }).catch(function(e){
+      busy=false; btn.disabled=false; setProg(false); setStatus('err','error');
+      addLog('could not load ' + PY_DIR + ' : ' + e.message);
+      addLog('The simulation needs the site served over http. Try: python -m http.server');
+    });
+  });
+
+  var C_UNC='#8a8781', C_CTL='#1f5fd0', C_TGT='red', C_INK='#16181d', C_RULE='#e2ded6';
+
+  var CV_H = 300;
+  function hidpi(cv){
+    var r = window.devicePixelRatio || 1;
+    var w = cv.clientWidth || 400;
+    cv.width  = Math.round(w * r);
+    cv.height = Math.round(CV_H * r);
+    cv.style.height = CV_H + 'px';
+    var g = cv.getContext('2d');
+    g.setTransform(r, 0, 0, r, 0, 0);
+    return {g:g, w:w, h:CV_H};
+  }
+
+  function axes(g,w,h,pad,xlo,xhi,ylo,yhi,xlab,ylab,invX){
+    g.clearRect(0,0,w,h);
+    g.strokeStyle=C_RULE; g.lineWidth=1; g.fillStyle='#6b7078';
+    g.font='11px ui-monospace,monospace';
+    var L=pad.l,R=w-pad.r,T=pad.t,Bm=h-pad.b;
+    for(var i=0;i<=4;i++){
+      var y=T+(Bm-T)*i/4, val=yhi-(yhi-ylo)*i/4;
+      g.beginPath(); g.moveTo(L,y); g.lineTo(R,y); g.stroke();
+      g.fillText(val.toFixed(2), 4, y+4);
+    }
+    for(var j=0;j<=4;j++){
+      var x=L+(R-L)*j/4, xv=invX ? xhi-(xhi-xlo)*j/4 : xlo+(xhi-xlo)*j/4;
+      g.beginPath(); g.moveTo(x,T); g.lineTo(x,Bm); g.stroke();
+      g.fillText(xv.toFixed(1), x-10, h-6);
+    }
+    g.strokeStyle='#cec9be'; g.strokeRect(L,T,R-L,Bm-T);
+    function X(v){ var f=(v-xlo)/(xhi-xlo); if(invX) f=1-f; return L+f*(R-L); }
+    function Y(v){ return Bm-(v-ylo)/(yhi-ylo)*(Bm-T); }
+    return {X:X,Y:Y,L:L,R:R,T:T,B:Bm};
+  }
+
+  function poly(g,ax,xs,ys,color,lw,dash){
+    g.save(); g.strokeStyle=color; g.lineWidth=lw; g.setLineDash(dash||[]);
+    g.lineJoin='round'; g.beginPath();
+    for(var i=0;i<xs.length;i++){ var px=ax.X(xs[i]), py=ax.Y(ys[i]); i?g.lineTo(px,py):g.moveTo(px,py); }
+    g.stroke(); g.restore();
+  }
+
+  function star(g,x,y,r,color){
+    g.save(); g.strokeStyle=color; g.lineWidth=1.8; g.lineCap='butt'; g.beginPath();
+    g.moveTo(x-r,y); g.lineTo(x+r,y); g.moveTo(x,y-r); g.lineTo(x,y+r);
+    g.stroke(); g.restore();
+  }
+
+  var LAST = null;
+
+  function drawEmpty(){
+    var tz = +document.getElementById('s_tz').value,
+        tx = +document.getElementById('s_tx').value;
+    var zone = [0.432, 0.55, 0.575, 1.125];
+    var s = hidpi(document.getElementById('cvSide')), g = s.g;
+    var ax = axes(g, s.w, s.h, {l:44,r:12,t:12,b:26}, 0, 17.2, 0.3, 2.1, '', '', true);
+    g.save(); g.strokeStyle='#cec9be'; g.setLineDash([2,3]); g.lineWidth=1;
+    [zone[2],zone[3]].forEach(function(z){ g.beginPath(); g.moveTo(ax.L,ax.Y(z)); g.lineTo(ax.R,ax.Y(z)); g.stroke(); });
+    g.restore();
+    star(g, ax.X(0), ax.Y(tz), 9, C_TGT);
+    g.fillStyle='#a9a49a'; g.font='12px ui-monospace,monospace';
+    g.fillText('no trajectory yet', ax.L+14, ax.T+34);
+
+    var s2 = hidpi(document.getElementById('cvPlate')), g2 = s2.g;
+    var ax2 = axes(g2, s2.w, s2.h, {l:44,r:12,t:12,b:26}, -0.48, 0.48, 0.25, 1.75, '', '', false);
+    g2.save(); g2.strokeStyle=C_INK; g2.lineWidth=2;
+    g2.strokeRect(ax2.X(-zone[0]/2), ax2.Y(zone[3]),
+                  ax2.X(zone[0]/2)-ax2.X(-zone[0]/2), ax2.Y(zone[2])-ax2.Y(zone[3]));
+    g2.restore();
+    star(g2, ax2.X(tx), ax2.Y(tz), 10, C_TGT);
+  }
+
+  function draw(d){
+    LAST = d;
+    var cv=document.getElementById('cvSide');
+    var s=hidpi(cv), g=s.g;
+    var allz = d.nom_z.concat(d.sol_z, [d.zone[2], d.zone[3], d.target[1]]);
+    var zlo=Math.min.apply(null,allz)-0.12, zhi=Math.max.apply(null,allz)+0.12;
+    var ax=axes(g,s.w,s.h,{l:44,r:12,t:12,b:26},0,17.2,zlo,zhi,'','',true);
+    g.save(); g.strokeStyle='#cec9be'; g.setLineDash([2,3]); g.lineWidth=1;
+    [d.zone[2],d.zone[3]].forEach(function(z){ g.beginPath(); g.moveTo(ax.L,ax.Y(z)); g.lineTo(ax.R,ax.Y(z)); g.stroke(); });
+    g.restore();
+    star(g,ax.X(0),ax.Y(d.target[1]),9,C_TGT);
+    poly(g,ax,d.nom_y,d.nom_z,C_UNC,2.6,[7,4]);
+    poly(g,ax,d.sol_y,d.sol_z,C_CTL,2.6);
+    g.fillStyle='#6b7078'; g.font='11px ui-monospace,monospace';
+    g.fillText(' ', ax.L+6, ax.T+14);
+
+    var cv2=document.getElementById('cvPlate');
+    var s2=hidpi(cv2), g2=s2.g;
+    var xr=0.48, ax2=axes(g2,s2.w,s2.h,{l:44,r:12,t:12,b:26},-xr,xr,0.25,1.75,'','',false);
+    g2.save(); g2.strokeStyle=C_INK; g2.lineWidth=2;
+    g2.strokeRect(ax2.X(-d.zone[0]/2), ax2.Y(d.zone[3]),
+                  ax2.X(d.zone[0]/2)-ax2.X(-d.zone[0]/2), ax2.Y(d.zone[2])-ax2.Y(d.zone[3]));
+    g2.restore();
+    star(g2,ax2.X(d.target[0]),ax2.Y(d.target[1]),10,C_TGT);
+    poly(g2,ax2,d.nom_x,d.nom_z,C_UNC,1.8,[7,4]);
+    poly(g2,ax2,d.sol_x,d.sol_z,C_CTL,1.8);
+    function ball(gg,axx,pt,color,dash){
+      gg.save(); gg.strokeStyle=color; gg.fillStyle=color+'33'; gg.lineWidth=2; gg.setLineDash(dash||[]);
+      var rpx = Math.abs(axx.X(0.037)-axx.X(0));
+      gg.beginPath(); gg.arc(axx.X(pt[0]),axx.Y(pt[1]),Math.max(rpx,4),0,6.2832); gg.fill(); gg.stroke(); gg.restore();
+    }
+    ball(g2,ax2,d.end_u,C_UNC,[5,3]); ball(g2,ax2,d.end_c,C_CTL);
+  }
+
+  function readout(d){
+    document.getElementById('ro_miss').textContent = d.miss_c.toFixed(3);
+    document.getElementById('ro_missu').textContent = d.miss_u.toFixed(3);
+    var call=document.getElementById('ro_call');
+    call.textContent = d.strike_c ? 'STRIKE' : 'ball';
+    call.style.color = d.strike_c ? C_CTL : C_TGT;
+    document.getElementById('ro_t').textContent = d.t_flight.toFixed(3);
+    document.getElementById('ro_tau').textContent = d.tau_peak.toFixed(2)+' / '+d.tau_lim.toFixed(0);
+    document.getElementById('ro_nav').textContent = isNaN(d.nav_err) ? 'n/a' : d.nav_err.toFixed(4);
+  }
+
+  ['s_tz','s_tx'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', function(){ if(!LAST) drawEmpty(); });
+  });
+
+  var rt;
+  window.addEventListener('resize', function(){
+    clearTimeout(rt);
+    rt = setTimeout(function(){ LAST ? draw(LAST) : drawEmpty(); }, 150);
+  });
+  window.addEventListener('DOMContentLoaded', drawEmpty);
+  if(document.readyState !== 'loading') drawEmpty();
+})();
+</script>
+</body>
+</html>
