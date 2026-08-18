@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draper GNC Co-op | Eli Lewis</title>
+<meta name="description" content="Eli Lewis, GNC Engineer Co-op at Draper (Cambridge, MA), January to June 2026: 6-DOF Simulink simulation framework, control law synthesis, and Monte Carlo analysis for air and space vehicle programs. Program details are not public.">
+
+<style>
+:root{
+  --bg:#faf9f6;
+  --surface:#ffffff;
+  --surface-2:#f3f1ec;
+  --ink:#16181d;
+  --ink-2:#3c4048;
+  --muted:#6b7078;
+  --rule:#e2ded6;
+  --rule-2:#cec9be;
+  --accent:#1f5fd0;
+  --accent-soft:#e8effb;
+  --accent-2:#a35a00;
+  --accent-2-soft:#fbf0e0;
+  --mono:ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --maxw:900px;
+  --wide:1180px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:80px;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--sans);font-size:17px;line-height:1.68;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"kern" 1,"liga" 1;
+}
+img{max-width:100%;height:auto;display:block}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(31,95,208,.3)}
+a:hover{border-bottom-color:var(--accent)}
+code{font-family:var(--mono);font-size:.88em}
+
+.nav{
+  position:sticky;top:0;z-index:50;
+  background:rgba(250,249,246,.86);backdrop-filter:saturate(1.6) blur(12px);
+  border-bottom:1px solid var(--rule);
+}
+.nav-in{
+  max-width:var(--wide);margin:0 auto;padding:0 28px;
+  height:56px;display:flex;align-items:center;gap:28px;
+}
+.nav-home{
+  font-weight:650;letter-spacing:-.01em;color:var(--ink);
+  border:0;font-size:15px;white-space:nowrap;
+}
+.nav-links{display:flex;gap:22px;margin-left:auto;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{
+  border:0;color:var(--muted);font-size:13.5px;font-weight:500;
+  letter-spacing:.01em;white-space:nowrap;padding:4px 0;
+  border-bottom:2px solid transparent;transition:color .15s,border-color .15s;
+}
+.nav-links a:hover{color:var(--ink)}
+.nav-links a.on{color:var(--ink);border-bottom-color:var(--accent)}
+
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+.wrap-wide{max-width:var(--wide);margin:0 auto;padding:0 28px}
+section{padding:72px 0;border-top:1px solid var(--rule)}
+section:first-of-type{border-top:0}
+
+.hero{padding:78px 0 5px;border:0}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 18px;
+}
+h1{
+  font-size:clamp(34px,5.4vw,54px);line-height:1.08;letter-spacing:-.028em;
+  font-weight:680;margin:0 0 20px;max-width:16ch;
+}
+.dek{font-size:clamp(18px,2.2vw,21px);line-height:1.55;color:var(--ink-2);max-width:60ch;margin:0 0 30px}
+.hero-links{display:flex;flex-wrap:wrap;gap:12px}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:8px;font-size:14.5px;font-weight:550;
+  border:1px solid var(--ink);background:var(--ink);color:#fff;
+  cursor:pointer;transition:opacity .15s;
+}
+.btn:hover{opacity:.84;border-bottom-color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule-2)}
+.btn.ghost:hover{border-color:var(--ink);opacity:1}
+
+.sec-head{display:flex;align-items:baseline;gap:16px;margin:0 0 8px}
+h2{font-size:clamp(27px,3.6vw,36px);line-height:1.15;letter-spacing:-.024em;font-weight:660;margin:0}
+h3{font-size:20px;letter-spacing:-.014em;font-weight:620;margin:38px 0 12px}
+.lede{font-size:18.5px;line-height:1.6;color:var(--ink-2);max-width:62ch;margin:14px 0 0}
+p{margin:0 0 18px;max-width:68ch}
+strong{font-weight:620}
+
+.facts{
+  border:1px solid var(--rule);border-radius:10px;overflow:hidden;
+  background:var(--surface);margin-top:30px;
+}
+.facts div{display:flex;gap:14px;padding:13px 18px;border-top:1px solid var(--rule);font-size:14.5px}
+.facts div:first-child{border-top:0}
+.facts b{font-weight:600;flex:none;width:96px;color:var(--muted);font-size:13px;font-family:var(--mono);letter-spacing:.02em;padding-top:2px}
+
+figure{margin:34px 0;background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+figure img{width:100%;height:auto;background:#fff}
+figcaption{
+  padding:14px 18px;font-size:13.5px;line-height:1.55;color:var(--muted);
+  border-top:1px solid var(--rule);background:var(--surface-2);
+}
+figcaption b{color:var(--ink-2);font-weight:600}
+.fig-hero{margin:0 auto;max-width:var(--wide);padding:0 28px}
+.fig-hero figure{margin:44px 0 0}
+
+footer{border-top:1px solid var(--rule);padding:44px 0 64px;color:var(--muted);font-size:14px}
+footer p{max-width:68ch}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="nav-home" href="index.html">Eli Lewis <span style="color:var(--muted);font-weight:400">/ Draper</span></a>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#vehicle">Vehicle GNC</a>
+      <a href="#trajectory">Trajectory Optimization</a>
+      <a href="#framework">Simulation Framework</a>
+    </div>
+  </div>
+</nav>
+
+<div id="top"></div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Draper &bull; Cambridge, MA &bull; January &ndash; June 2026</p>
+    <h1>GNC Co-op</h1>
+    <p class="dek">
+      Six months as a guidance, navigation, and control engineer at Draper, split across three projects.
+      The work is proprietary and falls under ITAR and controlled unclassified information rules, so this
+      page stays at an engineering level and does not get into specifics.
+    </p>
+    <div class="hero-links">
+      <a class="btn ghost" href="index.html#projects">All projects</a>
+      <a class="btn ghost" href="assets/resume.pdf">Resume</a>
+      <a class="btn ghost" href="https://www.linkedin.com/in/elijah-q-lewis/" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+  </div>
+</header>
+
+<div class="fig-hero">
+  <figure>
+    <img src="assets/draper.jpeg" width="4024" height="2814" loading="lazy" decoding="async" alt="Stadning in front of Draper headquarters, Cambridge MA.">
+    <figcaption><b>Draper headquarters</b>, Cambridge, MA.</figcaption>
+  </figure>
+</div>
+
+<section id="overview">
+  <div class="wrap">
+    <div class="sec-head"><h2>Overview</h2></div>
+    <p class="lede">
+      Draper is a non-profit engineering R&amp;D lab that has been doing guidance and navigation since Apollo. I worked as a GNC engineer/researcher during my 6 months as a co-op.
+    </p>
+
+    <div class="facts">
+      <div><b>Role</b><span>GNC Engineer Co-op</span></div>
+      <div><b>Dates</b><span>January 5 &ndash; June 25, 2026</span></div>
+      <div><b>Location</b><span>Cambridge, MA</span></div>
+      <div><b>Projects</b><span>Vehicle GNC, trajectory optimization, 6-DOF simulation framework</span></div>
+      <div><b>Tools</b><span>MATLAB, Simulink, Python, Git</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="vehicle">
+  <div class="wrap">
+    <div class="sec-head"><h2>Vehicle GNC</h2></div>
+    <p class="lede">
+      The bulk of my time went to the GNC design for an air vehicle that was both underactuated and
+      undersensed: fewer control authorities than degrees of freedom to command, and less direct state
+      measurement than ideal.
+    </p>
+
+    <h3>Control design under a short control authority</h3>
+    <p>
+      I created and validated control schemes for the vehicle, including non-linear flight
+      regimes where linear-design intuition stops holding. Most of the design effort was spent on the trade
+      between response time and maneuverability, refined iteratively using simulations and numerical solvers.
+    </p>
+
+    <h3>Monte Carlo characterization</h3>
+    <p>
+      I built Monte Carlo sweeps to characterize the vehicle across its perturbations and unknowns:
+      atmospheric and environmental variation, initial condition dispersions, actuator and sensor error,
+      and uncertainty in the vehicle model itself. With limited sensing, it is important to understand the limits
+      of the filters, and that threshold is most visible in a large Monte Carlo set.
+    </p>
+    <p>
+      The sweeps served the requirements work as well. Sweeping a parameter across a dispersed run set
+      shows both what the vehicle tolerates and where performance falls off.
+    </p>
+
+    <h3>Requirements derivation</h3>
+    <p>
+      Those results fed system-level GNC requirements, with each component in the loop getting its own:
+      the filters, the sensors, the guidance, and the controller. Every requirement traced back to the
+      simulation evidence that produced it.
+    </p>
+  </div>
+</section>
+
+<section id="trajectory">
+  <div class="wrap">
+    <div class="sec-head"><h2>Trajectory Optimization</h2></div>
+    <p class="lede">
+      Another project I worked on was trajectory generation. Framed purely as an optimization problem: search a space
+      of candidate trajectories for one that satisfies the vehicle's constraints while minimizing a cost.
+    </p>
+    <p>
+      The software drives its physics-based propagator with a stochastic, population-based optimizer rather than
+      a gradient method, so it needs no initial guess and tolerates the discontinuous, constraint-heavy cost
+      surfaces that trajectory problems produce. Candidates are scored against the objective, the better
+      performers are recombined and perturbed, and the population converges on global optima that a local
+      method would walk past.
+    </p>
+    <p>
+      My contribution was devloping the trajectories for a new vehicle. I set the control schemes, the flight plan, and the objectives. 
+      I also generated and reviewed the
+      resulting trajectory sets, checking outputs for constraint violations and non-physical artifacts before
+      they were used downstream.
+    </p>
+    <p>
+      The output fed early development work on new programs and software for the vehicle. Trajectory studies of this kind run
+      before an architecture is settled, so the results were used to bound what was achievable and to inform
+      the tools and vehicle concepts being built around them.
+    </p>
+  </div>
+</section>
+
+<section id="framework">
+  <div class="wrap">
+    <div class="sec-head"><h2>Simulation Framework</h2></div>
+    <p class="lede">
+      Alongside the vehicle work I contributed to Draper's in-house 6-DOF GNC framework in Simulink.
+    </p>
+    <p>
+      The goal was modularity: vehicle dynamics, actuator models, and sensor suites as swappable blocks, so
+      setting up a new vehicle becomes a configuration rather than a new simulation. I implemented pieces of
+      each of those three layers.
+    </p>
+    <p>
+      Development followed software best practices throughout. I worked on feature branches, opened merge
+      requests for review, responded to reviewer feedback, and kept changes scoped and documented. The
+      framework is now in use across multiple air and space vehicle programs at Draper.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>Eli Lewis</strong> &bull; Aerospace Engineering &bull; GNC Engineer Co-op at Draper, January &ndash; June 2026.</p>
+    <div class="hero-links" style="margin-top:24px">
+      <a class="btn" href="index.html#projects">All projects</a>
+      <a class="btn ghost" href="assets/resume.pdf">Resume</a>
+      <a class="btn ghost" href="https://www.linkedin.com/in/elijah-q-lewis/" target="_blank" rel="noopener">LinkedIn</a>
+      <a class="btn ghost" href="mailto:eqlewis2@illinois.edu">eqlewis2@illinois.edu</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var links = [].slice.call(document.querySelectorAll('.nav-links a[href^="#"]'));
+  var map = {};
+  links.forEach(function(a){
+    var el = document.querySelector(a.getAttribute('href'));
+    if(el) map[a.getAttribute('href').slice(1)] = a;
+  });
+  if(!('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      var a = map[e.target.id];
+      if(a && e.isIntersecting){
+        links.forEach(function(x){ x.classList.remove('on'); });
+        a.classList.add('on');
+      }
+    });
+  }, {rootMargin:'-45% 0px -50% 0px'});
+  Object.keys(map).forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) io.observe(el);
+  });
+})();
+</script>
+
+</body>
+</html>
