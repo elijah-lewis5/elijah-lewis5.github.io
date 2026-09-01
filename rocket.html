@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Draper GNC Co-op | Eli Lewis</title>
-<meta name="description" content="Eli Lewis, GNC Engineer Co-op at Draper (Cambridge, MA), January to June 2026: 6-DOF Simulink simulation framework, control law synthesis, and Monte Carlo analysis for air and space vehicle programs. Program details are not public.">
+<title>Rocket Roll Control | Eli Lewis</title>
+<meta name="description" content="Eli Lewis, Controls Sub-Team Lead at Liquid Rocketry at Illinois, 2024-2025. Fin-tab roll control for a high-power rocket: CFD-derived control authority, surface sizing, and a rate-damping loop verified in 6-DOF simulation.">
 
 <style>
 :root{
@@ -113,6 +113,7 @@ figcaption{
 figcaption b{color:var(--ink-2);font-weight:600}
 .fig-hero{margin:0 auto;max-width:var(--wide);padding:0 28px}
 .fig-hero figure{margin:44px 0 0}
+.fig-hero.portrait figure{max-width:560px;margin-left:auto;margin-right:auto}
 
 footer{border-top:1px solid var(--rule);padding:44px 0 64px;color:var(--muted);font-size:14px}
 footer p{max-width:68ch}
@@ -122,12 +123,12 @@ footer p{max-width:68ch}
 
 <nav class="nav">
   <div class="nav-in">
-    <a class="nav-home" href="index.html">Eli Lewis <span style="color:var(--muted);font-weight:400">/ Draper</span></a>
+    <a class="nav-home" href="index.html">Eli Lewis <span style="color:var(--muted);font-weight:400">/ Roll Control</span></a>
     <div class="nav-links">
       <a href="#overview">Overview</a>
-      <a href="#vehicle">Vehicle GNC</a>
-      <a href="#trajectory">Trajectory Optimization</a>
-      <a href="#framework">Simulation Framework</a>
+      <a href="#authority">Control Authority</a>
+      <a href="#loop">Closing the Loop</a>
+      <a href="#handoff">Handoff</a>
     </div>
   </div>
 </nav>
@@ -136,11 +137,12 @@ footer p{max-width:68ch}
 
 <header class="hero">
   <div class="wrap">
-    <p class="eyebrow">Draper &bull; Cambridge, MA &bull; January &ndash; June 2026</p>
-    <h1>Draper GNC Co-op</h1>
+    <p class="eyebrow">Liquid Rocketry at Illinois &bull; Champaign, IL &bull; August 2024 &ndash; May 2025</p>
+    <h1>Rocket Roll Control</h1>
     <p class="dek">
-      Six months as a guidance, navigation, and control engineer at Draper, split across three projects.
-      Due to the nature of this work, this page is intentionaly vague.
+      I led the controls sub-team that designed active roll control for Maurice 2, a high-power rocket at
+      Liquid Rocketry at Illinois. Actuated fin tabs, aerodynamic authority measured in CFD, and a
+      rate-damping loop using an onboard state estimate.
     </p>
     <div class="hero-links">
       <a class="btn ghost" href="index.html#projects">All projects</a>
@@ -150,8 +152,8 @@ footer p{max-width:68ch}
 
 <div class="fig-hero">
   <figure>
-    <img src="assets/draper.jpeg" width="4024" height="2814" loading="lazy" decoding="async" alt="Stadning in front of Draper headquarters, Cambridge MA.">
-    <figcaption><b>Draper headquarters</b>, Cambridge, MA.</figcaption>
+    <img src="assets/cf_vehicle.png" width="1554" height="857" loading="lazy" decoding="async" alt="Ghosted CAD render of the vehicle in side view showing the nose cone, avionics bay, body tube and fin can through a transparent airframe.">
+    <figcaption><b>Maurice 2 vehicle layout. </b>Nose, avionics bay, body tube, fin can. Courtesy of Liquid Rocketry at Illinois.</figcaption>
   </figure>
 </div>
 
@@ -159,104 +161,90 @@ footer p{max-width:68ch}
   <div class="wrap">
     <div class="sec-head"><h2>Overview</h2></div>
     <p>
-      Draper is a non-profit engineering R&amp;D lab that has been doing guidance and navigation since Apollo. I worked as a GNC engineer/researcher during my 6 months as a co-op.
+     With the end goal of flying a pump-fed liquid rocket engine, we needed to mitigate roll for the engine 
+     and pumps to operate nominally. This is what drove the design of a roll-controlled rocket with actuated 
+     fin tabs.
+    </p>
+    <p>
+      My year went to three things: sizing the control surfaces, measuring how much authority they had, and
+      writing the loop that used them. Maurice 2 did not launch during my time on the team. Its successor,
+      Control Freak, flew in April 2026 using the same approach.
     </p>
 
     <div class="facts">
-      <div><b>Role</b><span>GNC Engineer Co-op</span></div>
-      <div><b>Dates</b><span>January 5 &ndash; June 25, 2026</span></div>
-      <div><b>Location</b><span>Cambridge, MA</span></div>
-      <div><b>Projects</b><span>Vehicle GNC, trajectory optimization, 6-DOF simulation framework</span></div>
-      <div><b>Tools</b><span>MATLAB, Simulink, Python, Git</span></div>
+      <div><b>Role</b><span>Controls Sub-Team Lead</span></div>
+      <div><b>Dates</b><span>August 2024 &ndash; May 2025</span></div>
+      <div><b>Vehicle</b><span>Maurice 2, actuated fin tabs on Hitec HS-225BB servos</span></div>
+      <div><b>Scope</b><span>Aerodynamic sizing, control law, 6-DOF verification</span></div>
+      <div><b>Tools</b><span>C++, Simulink, Python, ANSYS Fluent, OpenRocket, RocketPy</span></div>
     </div>
   </div>
 </section>
 
-<section id="vehicle">
+<section id="authority">
   <div class="wrap">
-    <div class="sec-head"><h2>Vehicle GNC</h2></div>
+    <div class="sec-head"><h2>Control Authority</h2></div>
     <p>
-      The bulk of my time went to the GNC design for a vehicle that was both underactuated and
-      undersensed: fewer control authorities than degrees of freedom to command, and less direct state
-      measurements than ideal.
+      Roll is a single-axis problem with a gain that moves by orders of magnitude over the flight. The hard
+      part is knowing how much moment a deflection produces at a given airspeed and altitude.
+    </p>
+    <p>
+      Rolling moment scales with dynamic pressure, so a deflection at burnout produces significantly more 
+      than near apogee. I automated an ANSYS workflow in Python to sweep deflection angle and flow
+      condition, then reduced the runs into aerodynamic coefficient tables. Those tables became the control
+      model the loop is designed against.
     </p>
 
-    <h3>Control design under a short control authority</h3>
-    <p>
-      I created and validated control schemes for the vehicle, including non-linear flight
-      regimes. Most of the design effort was spent on the trade
-      between response time and maneuverability, refined iteratively using simulations and numerical solvers.
-    </p>
-
-    <h3>Monte Carlo characterization</h3>
-    <p>
-      I built Monte Carlo sweeps to characterize the vehicle across its perturbations and unknowns:
-      atmospheric and environmental variation, initial condition dispersions, actuator and sensor error,
-      and uncertainty in the vehicle model itself. With limited sensing, it is important to understand the limits
-      of the filters, and that threshold is most visible in a large Monte Carlo set.
-    </p>
-    <p>
-      The sweeps served the requirements work as well. Sweeping a parameter across a dispersed run set
-      shows both what the vehicle tolerates and where performance falls off.
-    </p>
-
-    <h3>Requirements derivation</h3>
-    <p>
-      Those results fed system-level GNC requirements, with each component in the loop getting its own:
-      the filters, the sensors, the guidance, and the controller. Every requirement traced back to the
-      simulation evidence that produced it.
-    </p>
+    <figure>
+      <img src="assets/cf_cfd.png" width="600" height="222" loading="lazy" decoding="async" alt="CFD velocity-magnitude contour on the vehicle centerline plane showing a local disturbance at the control surfaces and a wake behind the tail.">
+      <figcaption><b>Velocity magnitude</b> on the centerline plane. The rolling moment comes from the local disturbance at the control surfaces and the wake off the tail. Courtesy of Liquid Rocketry at Illinois.</figcaption>
+    </figure>
   </div>
 </section>
 
-<section id="trajectory">
+<section id="loop">
   <div class="wrap">
-    <div class="sec-head"><h2>Trajectory Optimization</h2></div>
+    <div class="sec-head"><h2>Closing the Loop</h2></div>
     <p>
-      Another project I worked on was trajectory generation. Framed purely as an optimization problem: search a space
-      of candidate trajectories for one that satisfies the vehicle's constraints while minimizing a cost.
+      A raw gyro carries bias and noise that integrate badly, so the flight software runs a state estimate
+      over the inertial measurements and the vehicle dynamics, and the controller acts on the estimate rather
+      than the sensor.
     </p>
     <p>
-      The software drives its physics-based propagator with a stochastic, population-based optimizer. 
-      Candidates are scored against the objective, the better
-      performers are recombined and perturbed, and the population converges on global optima.
+      The law is rate damping with the gain scheduled on airspeed through the CFD tables, so it commands a
+      deflection the air can deliver at that instant. Control stays off during motor
+      burn, where the vibration environment is hostile to the estimate, and takes over at burnout.
     </p>
     <p>
-      My contribution was devloping the trajectories for a new vehicle. I set the control schemes, the flight plan, and the objectives. 
-      I also generated and reviewed the
-      resulting trajectory sets, checking outputs for constraint violations and non-physical artifacts before
-      they were used downstream.
+      Verification came in two steps. First the open-loop model: with control disabled, the 6-DOF integration
+      of the vehicle should reproduce what an independent solver predicts for the same airframe. It does,
+      through the burn and into the first second of coast, which is the window the controller has to work in.
+      Then the closed loop: the same model with the law switched on holds the vehicle to within 1 deg/s,
+      against an uncontrolled peak near 68 deg/s and most of a full revolution accumulated before apogee.
     </p>
-    <p>
-      The output fed early developmental work on new programs and software for a new vehicle. These trajectory studies were run
-      before an architecture is settled, so the results were used to bound what was achievable and to inform
-      the tools and vehicle concepts being built around them.
-    </p>
+
+    <figure>
+      <img src="assets/m2_roll.png" width="1426" height="1395" loading="lazy" decoding="async" alt="Three stacked plots: uncontrolled roll rate from the 6-DOF model against OpenRocket, roll rate with control on versus off, and commanded fin tab deflection against time.">
+      <figcaption><b>Roll response.</b> Top: uncontrolled roll rate against OpenRocket, peaks agreeing within 3 percent before the decay rates diverge. Middle: the loop holds the vehicle inside 1 deg/s. Bottom: the command sits near 5 deg, well inside the deflection limit.</figcaption>
+    </figure>
   </div>
 </section>
 
-<section id="framework">
+<section id="handoff">
   <div class="wrap">
-    <div class="sec-head"><h2>Simulation Framework</h2></div>
+    <div class="sec-head"><h2>Handoff</h2></div>
     <p>
-      Alongside the vehicle work I contributed to Draper's in-house 6-DOF GNC framework in Simulink.
-    </p>
-    <p>
-      The goal was modularity: vehicle dynamics, actuator models, and sensor suites as swappable blocks, so
-      setting up a new vehicle becomes a configuration with components that are easy to change. I implemented pieces of
-      each of those three layers.
-    </p>
-    <p>
-      I followed software development best practices throughout. I worked on feature branches, opened merge
-      requests for review, responded to reviewer feedback, and kept documented my changes. The
-      framework will be deployed across multiple air and space vehicle programs at Draper.
+      I left the team in May 2025 for a summer internship. The airframe group carried the work onto a new vehicle, Control Freak, a
+      5 inch composite airframe using canards rather than fin tabs but the same method: CFD-derived roll
+      moments to size the surfaces, state estimation and feedback to command them. Control Freak flew in
+      April 2026.
     </p>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <p><strong>Eli Lewis</strong> &bull; Aerospace Engineering &bull; GNC Engineer Co-op at Draper, January &ndash; June 2026.</p>
+    <p><strong>Eli Lewis</strong> &bull; Aerospace Engineering &bull; Controls Sub-Team Lead, Liquid Rocketry at Illinois, August 2024 &ndash; May 2025.</p>
     <div class="hero-links" style="margin-top:24px">
       <a class="btn" href="index.html#projects">All projects</a>
       <a class="btn ghost" href="assets/resume.pdf">Resume</a>

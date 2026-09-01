@@ -325,6 +325,9 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
       it on the target, and actuates itself onto that spin. Strike rate goes from
       25% to 100%.
     </p>
+    <div class="hero-links">
+      <a class="btn ghost" href="index.html#projects">All projects</a>
+    </div>
   </div>
 </header>
 
@@ -440,7 +443,7 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
     <p>
       The target is a 0.432m by 0.55m box at a plane 16.8m from release.
       The ball either crosses inside it or it does not, which gives a clean terminal miss
-      distance and a pass/fail metric. Guidance default aim is at the centre of the zone, but can be tuned.
+      distance and a pass/fail metric. Guidance default aim is at the center of the zone, but can be tuned.
     </p>
 
     <h3>The GNC</h3>
@@ -597,7 +600,7 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
       </div>
       <p class="small">
         Invertible and saturating, so a required <span class="katex-inline">$C_L$</span> maps to a unique spin
-        rate. Aerodynamic torque is zero; spin decay over 0.45s is negligible.
+        rate. Aerodynamic torque is assumed zero: spin decay over 0.5s is negligible.
       </p>
 
       <h3>Rigid-body dynamics with wheels</h3>
@@ -656,7 +659,7 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
       </div>
 
       <h4>Aero model validation</h4>
-      <p class="small">Flown with spin and spinless; the difference is the induced break.</p>
+      <p class="small">Flown with spin and spinless.</p>
       <div class="tbl-scroll">
         <table>
           <thead><tr><th>Pitch</th><th class="num">Flight [s]</th><th class="num">Horizontal [in]</th><th class="num">Vertical [in]</th><th>Published range</th></tr></thead>
@@ -733,7 +736,7 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
 
       <h3>Dead reckoned outside the filter</h3>
       <p>
-        Two quantities are propagated rather than estimated. Position, because no amount of filtering recovers an unobservable state; and wheel momentum,
+        Two quantities are propagated rather than estimated. Position, because no amount of filtering recovers an unobservable state, and wheel momentum,
         because it can be integrated from the commanded torques. 
       </p>
       <div class="eq">
@@ -783,7 +786,7 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
         in body axes, and nothing else: gravity does not appear in a specific-force measurement.
       </p>
       <div class="eq">
-        <span class="eq-label">measurement model; the k column falls out of the model being linear in k</span>
+        <span class="eq-label">measurement model</span>
         $$ h(\hat{\mathbf x}) = \begin{bmatrix} \boldsymbol\omega_b \\[2pt] R(\mathbf q)^{\mathsf T}\dfrac{k\,\mathbf F_{\text{aero}}}{m} \end{bmatrix}, \qquad
            H_{\boldsymbol\omega} = I_3, \qquad
            H_{k} = \frac{h_{\text{acc}}}{k} $$
@@ -868,8 +871,7 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
       <p>
         Guidance turns a position error 16.8m away into a body-rate command, against a force
         perpendicular to velocity, saturating at <span class="katex-inline">$C_{L,\max}$</span>, on a slew-limited
-        axis. The law inverts the aerodynamics in closed form: no ODE solves, no Jacobians, no
-        iteration.
+        axis. The law inverts the aerodynamics in closed form.
       </p>
     </div>
 
@@ -926,8 +928,6 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
 
     <div class="block implementation">
       <span class="tag">Implementation</span>
-      <p class="small"><code>w_setpoint()</code> in <code>gnc.py</code>: thirty lines, no solver, no state, 50Hz.
-        The code calls the projected vector <code>a_guid</code>; it is <span class="katex-inline">$\mathbf a_\perp$</span> above.</p>
       <pre><span class="c"># gnc.py, the guidance law in full</span>
 t_go = (target[<span class="s">1</span>] - r_i[<span class="s">1</span>]) / v_i[<span class="s">1</span>]
 <span class="k">if</span> t_go &lt; <span class="s">0.09</span>:                                       <span class="c"># terminal freeze</span>
@@ -949,7 +949,7 @@ w_cmd_i *= -np.log(<span class="s">1</span> - C_L_req/C_L_max) / <span class="s"
           held. Wheel torque now peaks at 4.2 of 5N·m and never saturates.</li>
         <li><strong>Constant acceleration is approximate.</strong> Re-solving at 50Hz means it
           only holds 20ms at a time.</li>
-        <li><strong>The axes differ.</strong> Vertical modulates backspin; lateral reorients the axis.</li>
+        <li><strong>The axes differ.</strong> Vertical modulates backspin and lateral reorients the axis.</li>
       </ul>
 
       <figure>
@@ -1029,9 +1029,9 @@ tau = np.clip(tau_gyro + tau_fb, -p.tau_limit, p.tau_limit)</pre>
       <ul>
         <li>Dispersion comes from release conditions, the variation a pitcher cannot remove.
           Position offset is the hardest: a pure bias that has to be flown out.</li>
-        <li>Vertical and lateral miss are reported separately; the axes are not equally hard.</li>
-        <li>Release dispersion is drawn from a single <code>RandomState(4000)</code>; each trial's IMU biases
-          and EKF initialisation are seeded from its index. The whole campaign reproduces exactly.</li>
+        <li>Vertical and lateral miss are reported separately.</li>
+        <li>Release dispersion is drawn from a single random state, and each trial's IMU biases
+          and EKF initialisation are seeded from its index.</li>
       </ul>
     </div>
 
@@ -1048,7 +1048,7 @@ tau = np.clip(tau_gyro + tau_fb, -p.tau_limit, p.tau_limit)</pre>
         <li>Draw the dispersion from the trial's seeded generator.</li>
         <li>Fly the baseline: torque-free, DOP853.</li>
         <li>Fly it again closed-loop: fresh IMU biases, fresh EKF from a perturbed estimate.</li>
-        <li>Terminate at the plate or the ground; record the crossing.</li>
+        <li>Terminate at the plate or the ground and record the crossing.</li>
       </ol>
     </div>
 
@@ -1087,11 +1087,9 @@ tau = np.clip(tau_gyro + tau_fb, -p.tau_limit, p.tau_limit)</pre>
         <li><strong>Controlled pitches perform significantly better.</strong> Every controlled pitch
           lands closer to the target than any of the uncontrolled pitches. 25% strike rate to 100% strike rate.</li>
         <li><strong>Spin is not tracked mid-flight.</strong> The setpoint steps every 20ms and the ball is
-          slew-limited, so the commanded and achieved rates only agree in the mean. It does not matter:
-          what reaches the plate is the integral of the force, not the instantaneous rate.</li>
+          slew-limited, so the commanded and achieved rates only agree in the mean.</li>
         <li><strong>Navigation is the same order as the miss.</strong> Median EKF error at the plate is
-          0.007m against a median miss of 0.009m. Guidance tuning alone will not go much further; the
-          dead-reckoned position is the floor.</li>
+          0.007m against a median miss of 0.009m. Guidance tuning alone will not go much further.</li>
       </ul>
     </div>
   </div>

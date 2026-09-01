@@ -155,6 +155,7 @@ figcaption b{color:var(--ink-2);font-weight:600}
 }
 .fig-pad img{padding:18px 22px}
 .fig-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.fig-grid.fig-stack{grid-template-columns:1fr;gap:28px}
 @media(max-width:760px){.fig-grid{grid-template-columns:1fr}}
 .placeholder-note{
   display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
@@ -305,9 +306,8 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
       on a 0D combustion dataset.
     </p>
     <div class="hero-links">
-      <a class="btn" href="#interactive">Try the demo</a>
-      <a class="btn ghost" href="assets/checksum_paper.pdf" target="_blank" rel="noopener">Read the paper (PDF)</a>
       <a class="btn ghost" href="index.html#projects">All projects</a>
+      <a class="btn ghost" href="assets/checksum_paper.pdf" target="_blank" rel="noopener">Read the paper (PDF)</a>
     </div>
   </div>
 </header>
@@ -468,7 +468,7 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
       <h3>When a surrogate fails</h3>
       <p>
         Consider a simple 1D example: a network trained to approximate <span class="katex-inline">$y=x$</span> on the interval
-        <span class="katex-inline">$0<x<3$</span>. Outside this interval (<span class="katex-inline">$x\ge 3$</span>), the network
+        <span class="katex-inline">$0&lt;x&lt;3$</span>. Outside this interval (<span class="katex-inline">$x\ge 3$</span>), the network
         extrapolates poorly and fails to indicate that it is operating outside its training bounds.
       </p>
       <div class="eq">
@@ -636,7 +636,7 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
     <div class="block implementation">
       <span class="tag">Implementation</span>
       <figure class="fig-wide fig-pad">
-        <img src="assets/cs_ood_gen.png" width="6378" height="3188" loading="lazy" decoding="async" alt="Two scatter plots of pressure versus temperature. Green ID samples form a diagonal band in the centre. Purple generated OOD samples fill the surrounding space: on the left, clustered in four corner blocks away from the data; on the right, also bordering the ID band directly.">
+        <img src="assets/cs_ood_gen.png" width="6378" height="3188" loading="lazy" decoding="async" alt="Two scatter plots of pressure versus temperature. Green ID samples form a diagonal band in the center. Purple generated OOD samples fill the surrounding space: on the left, clustered in four corner blocks away from the data; on the right, also bordering the ID band directly.">
         <figcaption><b>Synthetic OOD sampling.</b> Green indicates ID data; purple indicates generated OOD points.
           <b>Left:</b> all dimensions forced out of range, placing samples in distal corners.
           <b>Right:</b> select dimensions permitted within range, generating points directly along the distribution boundary.</figcaption>
@@ -763,13 +763,13 @@ hr.soft{border:0;border-top:1px solid var(--rule);margin:44px 0}
         OOD points exhibit elevated checksum error alongside prediction error. Without checksum training, the errors remain uncorrelated;
         incorporating the loss and reward terms aligns them along a clear diagonal, isolating OOD cases.
       </p>
-      <figure class="fig-grid" style="background:none;border:0">
+      <figure class="fig-grid fig-stack" style="background:none;border:0">
         <div style="background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden">
-          <img src="assets/cs_result_baseline.png" width="6887" height="3725" loading="lazy" decoding="async" style="padding:14px" alt="Scatter of prediction error versus checksum error on log axes. Green in-distribution points sit low-left; red inaccurate OOD points are stacked in a vertical column at a similar checksum error, giving no diagonal relationship. Annotation: false negative rate 97.73%.">
+          <img src="assets/cs_result_baseline.png" width="1600" height="865" loading="lazy" decoding="async" style="padding:14px" alt="Scatter of prediction error versus checksum error on log axes. Green in-distribution points sit low-left; red inaccurate OOD points are stacked in a vertical column at a similar checksum error, giving no diagonal relationship. Annotation: false negative rate 97.73%.">
           <figcaption><b>Baseline (no checksum loss).</b> Checksum and prediction error are uncorrelated; 97.7% of OOD samples fall below the detection threshold.</figcaption>
         </div>
         <div style="background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden">
-          <img src="assets/cs_result_tuned.png" width="6789" height="3725" loading="lazy" decoding="async" style="padding:14px" alt="The same axes after training with checksum loss and reward. Green ID points cluster low-left; blue and red OOD points climb along a clear diagonal to the upper right. Annotation: false negative rate 0.05%.">
+          <img src="assets/cs_result_tuned.png" width="1600" height="878" loading="lazy" decoding="async" style="padding:14px" alt="The same axes after training with checksum loss and reward. Green ID points cluster low-left; blue and red OOD points climb along a clear diagonal to the upper right. Annotation: false negative rate 0.05%.">
           <figcaption><b>Tuned model (loss + reward).</b> A structured correlation emerges; only 0.05% of OOD samples remain undetected at the 99% threshold.</figcaption>
         </div>
       </figure>
@@ -998,7 +998,7 @@ self.onmessage=async function(ev){
     var side=Math.min(w0-pad.l-pad.r, 460);      // square plot area so the disk reads as a circle
     if(side<160) side=160;
     var s=hidpi(cv, side+pad.t+pad.b), g=s.g, w=s.w, h=s.h;
-    var L=pad.l+Math.max(0,(w-pad.l-pad.r-side)/2);   // centre the square horizontally
+    var L=pad.l+Math.max(0,(w-pad.l-pad.r-side)/2);   
     var Rr=L+side, T=pad.t, B=T+side;
     lastGeom={L:L,R:Rr,T:T,B:B};
     function X(v){ return L+(v+1)/2*(Rr-L); }
